@@ -25,7 +25,7 @@ def create_app():
 
     with app.app_context():
         init_db()
-        from .routes import auth, home, chores, grades, finance, admin, compare, goals
+        from .routes import auth, home, chores, grades, finance, admin, compare, goals, setup
         app.register_blueprint(auth.bp)
         app.register_blueprint(home.bp)
         app.register_blueprint(chores.bp)
@@ -34,5 +34,6 @@ def create_app():
         app.register_blueprint(admin.bp)
         app.register_blueprint(compare.bp)
         app.register_blueprint(goals.bp)
+        app.register_blueprint(setup.bp)
 
     return app
