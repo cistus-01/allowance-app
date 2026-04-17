@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}収支表{% endblock %}
+{% block content %}
+
+{% if children %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  {% for child in children %}
+  <a href="{{ url_for('finance.index', child_id=child.id, year=year, month=month) }}"
+     class="btn {% if child.id == target_id %}btn-primary{% else %}btn-outline-primary{% endif %} fw-bold px-3">
+    {{ child.name }}（{{ child.grade }}年）
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h3 class="mb-3">{{ target_user.name }}の収支表</h3>
+
+<div class="row g-3 mb-3">
+  <div class="col-6">
+    <div class="summary-box text-center">
+      <div class="text-muted small">今月の利用額</div>
+      <div class="amount text-danger">¥{{ '{:,}'.format(summary.expense) }}</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="summary-box text-center">
+      <div class="text-muted small">現在の所持金</div>
+      <div class="amount {% if balance < 0 %}text-danger{% endif %}">
+        ¥{{ '{:,}'.format(balance) }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex align-items-center justify-content-between mb-2">
+  <a href="{{ url_for('finance.index', child_id=target_id, year=prev_year, month=prev_month) }}"
+     class="btn btn-outline-secondary btn-sm">&laquo;</a>
+  <span class="fw-bold">{{ year }}年{{ month }}月</span>
+  <a href="{{ url_for('finance.index', child_id=target_id, year=next_year, month=next_month) }}"
+     class="btn btn-outline-secondary btn-sm">&raquo;</a>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-bordered text-center">
+    <thead>
+      <tr>
+        <th class="text-danger">日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th class="text-primary">土</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for week in calendar %}
+      <tr>
+        {% for day in week %}
+        {% if day == 0 %}
+        <td class="calendar-cell"></td>
+        {% else %}
+          {% set date_str = '%04d-%02d-%02d' | format(year, month, day) %}
+          {% set is_today = (year == today.year and month == today.month and day == today.day) %}
+          {% set day_data = day_map.get(date_str) %}
+          <td class="calendar-cell {% if is_today %}today{% endif %}"
+              onclick="location.href='{{ url_for('finance.day_detail', date=date_str, child_id=target_id) }}'">
+            <div class="fw-bold {% if loop.index0 == 0 %}text-danger{% elif loop.index0 == 6 %}text-primary{% endif %}">
+              {{ day }}
+            </div>
+            {% if day_data %}
+              {% if day_data.income_total > 0 %}
+              <div class="small text-success">収入:¥{{ '{:,}'.format(day_data.income_total) }}</div>
+              {% endif %}
+              {% if day_data.expense_total > 0 %}
+              <div class="small text-danger">支出:¥{{ '{:,}'.format(day_data.expense_total) }}</div>
+              {% endif %}
+            {% endif %}
+          </td>
+        {% endif %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

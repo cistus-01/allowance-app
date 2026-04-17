@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}管理設定{% endblock %}
+{% block content %}
+<h3 class="mb-4"><i class="bi bi-gear me-2"></i>管理設定</h3>
+
+{# ユーザー管理 #}
+<div class="card mb-4">
+  <div class="card-header">子供のアカウント管理</div>
+  <div class="card-body">
+    {% if children %}
+    <div class="table-responsive mb-3">
+      <table class="table table-sm align-middle">
+        <thead><tr><th>名前</th><th>ユーザー名</th><th>学年</th><th>編集</th><th>削除</th></tr></thead>
+        <tbody>
+          {% for child in children %}
+          <tr>
+            <td>{{ child.name }}</td>
+            <td><code>{{ child.username }}</code></td>
+            <td>{{ child.grade }}年</td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary"
+                      onclick="openEditModal({{ child.id }}, '{{ child.name }}', {{ child.grade or 1 }})">
+                編集
+              </button>
+            </td>
+            <td>
+              <form method="post" action="{{ url_for('admin.delete_user', user_id=child.id) }}"
+                    onsubmit="return confirm('{{ child.name }}を削除しますか？')">
+                <button class="btn btn-sm btn-outline-danger">削除</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <button class="btn btn-success btn-sm" onclick="document.getElementById('add-user-form').classList.toggle('d-none')">
+      <i class="bi bi-person-plus me-1"></i>子供を追加
+    </button>
+    <div id="add-user-form" class="d-none mt-3 p-3 border rounded">
+      <form method="post" action="{{ url_for('admin.add_user') }}">
+        <div class="row g-2">
+          <div class="col-sm-3">
+            <input type="text" name="name" class="form-control" placeholder="名前" required>
+          </div>
+          <div class="col-sm-3">
+            <input type="text" name="username" class="form-control" placeholder="ユーザー名（英数字）" required>
+          </div>
+          <div class="col-sm-3">
+            <input type="password" name="password" class="form-control" placeholder="パスワード" required>
+          </div>
+          <div class="col-sm-2">
+            <select name="grade" class="form-select" required>
+              {% for g in range(1, 7) %}
+              <option value="{{ g }}">{{ g }}年</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-1">
+            <button type="submit" class="btn btn-primary w-100">追加</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# 単価設定 #}
+<div class="card mb-4">
+  <div class="card-header">給与単価設定</div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('admin.update_rates') }}">
+      <div class="row g-3 mb-3">
+        {% for rate in pay_rates %}
+        <div class="col-sm-4">
+          <label class="form-label small">{{ rate.label }}</label>
+          <div class="input-group">
+            <span class="input-group-text">¥</span>
+            <input type="number" name="{{ rate.key }}" class="form-control" value="{{ rate.value }}" min="0">
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">単価を更新</button>
+    </form>
+  </div>
+</div>
+
+{# 家事管理 #}
+<div class="card mb-4">
+  <div class="card-header">家事の種類</div>
+  <div class="card-body">
+    <ul class="list-group list-group-flush mb-3">
+      {% for ct in chore_types %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <span>{{ ct.name }}</span>
+        <span class="badge bg-primary">¥{{ ct.unit_price }}/日</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <form method="post" action="{{ url_for('admin.add_chore') }}" class="row g-2">
+      <div class="col-sm-4">
+        <input type="text" name="name" class="form-control" placeholder="家事名" required>
+      </div>
+      <div class="col-sm-3">
+        <div class="input-group">
+          <span class="input-group-text">¥</span>
+          <input type="number" name="unit_price" class="form-control" placeholder="単価" min="0" required>
+        </div>
+      </div>
+      <div class="col-sm-2">
+        <button type="submit" class="btn btn-success w-100">追加</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# 教科管理 #}
+<div class="card mb-4">
+  <div class="card-header">教科の管理</div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      {% for s in subjects %}
+      <span class="badge bg-secondary fs-6 px-3 py-2">{{ s.name }}</span>
+      {% endfor %}
+    </div>
+    <form method="post" action="{{ url_for('admin.add_subject') }}" class="row g-2">
+      <div class="col-sm-4">
+        <input type="text" name="name" class="form-control" placeholder="教科名" required>
+      </div>
+      <div class="col-sm-2">
+        <button type="submit" class="btn btn-success w-100">追加</button>
+      </div>
+    </form>
+    <p class="text-muted small mt-2">追加した教科は全学年に設定されます。</p>
+  </div>
+</div>
+
+{# 編集モーダル #}
+<div class="modal fade" id="editUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">ユーザー編集</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="edit-user-form">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">名前</label>
+            <input type="text" name="name" id="edit-name" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">学年</label>
+            <select name="grade" id="edit-grade" class="form-select">
+              {% for g in range(1, 7) %}
+              <option value="{{ g }}">{{ g }}年</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">新しいパスワード（変更する場合のみ）</label>
+            <input type="password" name="password" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+          <button type="submit" class="btn btn-primary">更新</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function openEditModal(userId, name, grade) {
+    document.getElementById('edit-name').value = name;
+    document.getElementById('edit-grade').value = grade;
+    document.getElementById('edit-user-form').action = `/admin/user/${userId}/edit`;
+    new bootstrap.Modal(document.getElementById('editUserModal')).show();
+}
+</script>
+{% endblock %}

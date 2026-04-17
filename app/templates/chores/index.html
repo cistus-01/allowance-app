@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% block title %}家事表{% endblock %}
+{% block content %}
+
+{# 子供切り替え（親のみ） #}
+{% if children %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  {% for child in children %}
+  <a href="{{ url_for('chores.index', child_id=child.id, year=year, month=month) }}"
+     class="btn {% if child.id == target_id %}btn-primary{% else %}btn-outline-primary{% endif %} fw-bold px-3">
+    {{ child.name }}（{{ child.grade }}年）
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h3 class="mb-3">{{ target_user.name }}の家事表</h3>
+
+{# サマリーボックス #}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered text-center mb-2" style="background:#d4edda;">
+        <thead>
+          <tr>
+            {% for ct in chore_types %}
+            <th>{{ ct.name }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          <tr id="summary-row">
+            {% for ct in chore_types %}
+            <td class="fw-bold" id="summary-{{ ct.id }}">{{ chore_summary.get(ct.id|string, 0) }}</td>
+            {% endfor %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="d-flex justify-content-between align-items-center px-1">
+      <span class="text-muted">今月の獲得金額</span>
+      <span class="amount" id="chore-pay-display">¥{{ '{:,}'.format(chore_pay) }}</span>
+    </div>
+  </div>
+</div>
+
+{# 月ナビゲーション #}
+<div class="d-flex align-items-center justify-content-between mb-2">
+  <a href="{{ url_for('chores.index', child_id=target_id, year=prev_year, month=prev_month) }}"
+     class="btn btn-outline-secondary btn-sm">&laquo; 先月</a>
+  <span class="fw-bold">{{ year }}年{{ month }}月</span>
+  <a href="{{ url_for('chores.index', child_id=target_id, year=next_year, month=next_month) }}"
+     class="btn btn-outline-secondary btn-sm">来月 &raquo;</a>
+</div>
+
+{# カレンダー #}
+<div class="table-responsive">
+  <table class="table table-bordered text-center" id="chore-calendar">
+    <thead>
+      <tr>
+        <th class="text-danger">日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th class="text-primary">土</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for week in calendar %}
+      <tr>
+        {% for day in week %}
+        {% if day == 0 %}
+        <td class="calendar-cell"></td>
+        {% else %}
+          {% set date_str = '%04d-%02d-%02d' | format(year, month, day) %}
+          {% set is_today = (year == today.year and month == today.month and day == today.day) %}
+          <td class="calendar-cell {% if is_today %}today{% endif %}"
+              onclick="openChoreModal('{{ date_str }}', {{ target_id }})">
+            <div class="fw-bold {% if loop.index0 == 0 %}text-danger{% elif loop.index0 == 6 %}text-primary{% endif %}">
+              {{ day }}
+            </div>
+            <div class="chore-icons" id="icons-{{ date_str }}">
+              {% if date_str in record_map %}
+                {% for ct in chore_types %}
+                  {% if ct.id|string in record_map[date_str] %}
+                    {% set info = record_map[date_str][ct.id|string] %}
+                    <span class="chore-badge {% if info.count > 1 %}chore-shared{% else %}chore-done{% endif %}"
+                          title="{{ ct.name }}{% if info.count > 1 %}（{{ info.count }}人）{% endif %}">
+                      {{ ct.name[0] }}
+                    </span>
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+            </div>
+          </td>
+        {% endif %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# 家事入力モーダル #}
+<div class="modal fade" id="choreModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--primary); color:#fff;">
+        <h5 class="modal-title">自分のした仕事にチェックをつけよう</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-date-label" class="fw-bold mb-3 text-center fs-5"></div>
+        <div class="row g-3 text-center" id="chore-check-area">
+          {% for ct in chore_types %}
+          <div class="col">
+            <div class="text-muted small mb-1">{{ ct.name }}</div>
+            <button type="button"
+                    class="chore-toggle-btn btn btn-outline-secondary rounded-circle"
+                    style="width:52px;height:52px;font-size:1.2rem;"
+                    data-chore-id="{{ ct.id }}"
+                    onclick="toggleChore({{ ct.id }})">
+              ○
+            </button>
+            <div class="small mt-1 text-muted" id="count-{{ ct.id }}"></div>
+          </div>
+          {% endfor %}
+        </div>
+        <div id="modal-locked-msg" class="text-danger text-center mt-3 d-none">
+          <i class="bi bi-lock-fill me-1"></i>
+          <span id="locked-msg-text">当日分のみ入力できます</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let modalDate = null;
+let modalUserId = null;
+const choreTypeIds = {{ chore_types | map(attribute='id') | list | tojson }};
+const today = '{{ today.isoformat() }}';
+const isParent = {{ 'true' if current_user.is_parent else 'false' }};
+const todayMonth = '{{ '%04d-%02d' | format(today.year, today.month) }}';
+// 前月の YYYY-MM
+const _td = new Date(today + 'T00:00:00');
+const _pm = new Date(_td.getFullYear(), _td.getMonth() - 1, 1);
+const prevMonthStr = _pm.getFullYear() + '-' + String(_pm.getMonth() + 1).padStart(2, '0');
+// record_map: キーはすべてstr
+let recordMap = {{ record_map | tojson }};
+
+// 家事名マップ
+const choreNames = {
+  {% for ct in chore_types %}"{{ ct.id }}": "{{ ct.name[0] }}",{% endfor %}
+};
+
+function openChoreModal(dateStr, userId) {
+    modalDate = dateStr;
+    modalUserId = userId;
+    const parts = dateStr.split('-');
+    document.getElementById('modal-date-label').textContent =
+        `${parts[0]}年${parseInt(parts[1])}月${parseInt(parts[2])}日`;
+
+    const isToday = dateStr === today;
+    const isCurrentMonth = dateStr.substring(0, 7) === todayMonth;
+    const isPrevMonth    = dateStr.substring(0, 7) === prevMonthStr;
+    const canEdit = isParent ? (isCurrentMonth || isPrevMonth) : isToday;
+
+    document.getElementById('modal-locked-msg').classList.toggle('d-none', canEdit);
+    document.getElementById('locked-msg-text').textContent =
+        isParent ? '当月・前月分のみ編集できます' : '当日分のみ入力できます';
+
+    choreTypeIds.forEach(choreId => {
+        const btn = document.querySelector(`[data-chore-id="${choreId}"]`);
+        const countEl = document.getElementById(`count-${choreId}`);
+        const dayRecord = recordMap[dateStr] || {};
+        const info = dayRecord[String(choreId)];
+
+        if (info && info.checked) {
+            btn.textContent = '●';
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-success');
+        } else {
+            btn.textContent = '○';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-secondary');
+        }
+        countEl.textContent = info && info.count > 1 ? `${info.count}人` : '';
+        btn.disabled = !canEdit;
+    });
+
+    new bootstrap.Modal(document.getElementById('choreModal')).show();
+}
+
+async function toggleChore(choreId) {
+    const res = await fetch('/chores/toggle', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            date: modalDate,
+            chore_type_id: choreId,
+            user_id: modalUserId
+        })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        alert(data.error || 'エラーが発生しました');
+        return;
+    }
+
+    // モーダルのボタン更新
+    const btn = document.querySelector(`[data-chore-id="${choreId}"]`);
+    const countEl = document.getElementById(`count-${choreId}`);
+    if (data.checked) {
+        btn.textContent = '●'; btn.classList.add('btn-success'); btn.classList.remove('btn-outline-secondary');
+    } else {
+        btn.textContent = '○'; btn.classList.remove('btn-success'); btn.classList.add('btn-outline-secondary');
+    }
+    countEl.textContent = data.count > 1 ? `${data.count}人` : '';
+
+    // recordMap を更新
+    if (!recordMap[modalDate]) recordMap[modalDate] = {};
+    recordMap[modalDate][String(choreId)] = {checked: data.checked, count: data.count};
+
+    // カレンダーアイコン更新
+    updateCalendarIcons(modalDate);
+
+    // サマリー行・獲得金額を更新（APIから返ってくるので即反映）
+    if (data.summary) {
+        for (const [cid, cnt] of Object.entries(data.summary)) {
+            const el = document.getElementById(`summary-${cid}`);
+            if (el) el.textContent = cnt;
+        }
+    }
+    if (data.chore_pay !== undefined) {
+        document.getElementById('chore-pay-display').textContent =
+            '¥' + data.chore_pay.toLocaleString();
+    }
+}
+
+function updateCalendarIcons(dateStr) {
+    const container = document.getElementById(`icons-${dateStr}`);
+    if (!container) return;
+    container.innerHTML = '';
+    const dayRecord = recordMap[dateStr] || {};
+    choreTypeIds.forEach(choreId => {
+        const info = dayRecord[String(choreId)];
+        if (info && info.checked) {
+            const span = document.createElement('span');
+            span.className = `chore-badge ${info.count > 1 ? 'chore-shared' : 'chore-done'}`;
+            span.textContent = choreNames[String(choreId)] || '?';
+            span.title = (info.count > 1 ? `${info.count}人` : '');
+            container.appendChild(span);
+        }
+    });
+}
+</script>
+{% endblock %}

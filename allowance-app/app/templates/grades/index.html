@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% block title %}成績{% endblock %}
+{% block content %}
+
+{% if children %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  {% for child in children %}
+  <a href="{{ url_for('grades.index', child_id=child.id, year=year, term=term) }}"
+     class="btn {% if child.id == target_id %}btn-primary{% else %}btn-outline-primary{% endif %} fw-bold px-3">
+    {{ child.name }}（{{ child.grade }}年）
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">{{ target_user.name }}の成績表</h3>
+  {% if current_user.is_parent %}
+  <form method="post" action="{{ url_for('grades.toggle_period') }}">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="term" value="{{ term }}">
+    <input type="hidden" name="child_id" value="{{ target_id }}">
+    <button type="submit" class="btn btn-sm {% if is_open %}btn-danger{% else %}btn-success{% endif %}">
+      <i class="bi bi-{% if is_open %}lock{% else %}unlock{% endif %} me-1"></i>
+      成績入力{% if is_open %}を締める{% else %}を開放する{% endif %}
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+{# 学期・年切り替え #}
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+  <div class="btn-group">
+    {% for t in [1, 2, 3] %}
+    <a href="{{ url_for('grades.index', child_id=target_id, year=year, term=t) }}"
+       class="btn btn-outline-secondary {% if term == t %}active{% endif %}">{{ t }}学期</a>
+    {% endfor %}
+  </div>
+  <div class="d-flex gap-1">
+    <input type="number" id="year-input" value="{{ year }}" class="form-control form-control-sm" style="width:90px;">
+    <button onclick="changeYear()" class="btn btn-sm btn-outline-secondary">移動</button>
+  </div>
+</div>
+
+{# 成績反映の説明 #}
+<div class="alert alert-info py-2 small mb-3">
+  <i class="bi bi-info-circle me-1"></i>
+  <strong>今月の給料</strong>には <strong>{{ current_ref_label }}</strong> の成績が反映されています。
+  いま入力している成績は <strong>{{ applies_label }}</strong> の給料に反映されます。
+</div>
+
+{% if not is_open and not current_user.is_parent %}
+<div class="alert alert-warning">
+  <i class="bi bi-lock-fill me-2"></i>現在、成績入力期間ではありません。
+</div>
+{% endif %}
+
+{# 学業給サマリー #}
+<div class="summary-box d-flex justify-content-between mb-3">
+  <span class="text-muted">この学期の成績給合計</span>
+  <span class="amount" id="academic-pay-total">¥{{ '{:,}'.format(academic_pay) }}</span>
+</div>
+
+{# 成績カード（1教科1カード） #}
+<div class="card">
+  <div class="card-header">
+    {{ year }}年 {{ term }}学期
+    {% if is_open %}<span class="badge bg-success ms-2">入力開放中</span>{% endif %}
+  </div>
+  <div class="card-body p-0">
+    {% for subject in subjects %}
+    {% set rec = grade_records.get(subject.id) %}
+    {% set can_edit = is_open or current_user.is_parent %}
+    <div class="border-bottom py-3 px-3" id="subject-row-{{ subject.id }}">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-bold fs-5">{{ subject.name }}</span>
+        <span class="text-muted small" id="subject-pay-{{ subject.id }}">
+          +¥{% set sp = namespace(v=0) %}
+          {% if rec %}
+            {% for e in [rec['eval_1'], rec['eval_2'], rec['eval_3']] %}
+              {% if e == '◎' %}{% set sp.v = sp.v + rates.get('eval_excellent', 150) %}
+              {% elif e == '〇' %}{% set sp.v = sp.v + rates.get('eval_good', 20) %}{% endif %}
+            {% endfor %}
+          {% endif %}
+          {{ '{:,}'.format(sp.v) }}
+        </span>
+      </div>
+      <div class="d-flex gap-4 flex-wrap">
+        {% for obs_i in [1, 2, 3] %}
+        {% set field = 'eval_' ~ obs_i %}
+        {% set current_val = rec[field] if rec else None %}
+        <div>
+          <div class="text-muted small mb-1">観点{{ obs_i }}</div>
+          <div class="btn-group" role="group">
+            {% for ev in eval_values %}
+            <button type="button"
+                    class="eval-select-btn btn btn-sm
+                           {% if current_val == ev %}
+                             {% if ev == '◎' %}btn-warning{% elif ev == '〇' %}btn-success{% else %}btn-secondary{% endif %}
+                           {% else %}btn-outline-secondary{% endif %}"
+                    data-subject-id="{{ subject.id }}"
+                    data-obs="{{ obs_i }}"
+                    data-eval="{{ ev }}"
+                    {% if not can_edit %}disabled{% endif %}
+                    onclick="setEval({{ subject.id }}, {{ obs_i }}, '{{ ev }}', this)">
+              {{ ev }}
+            </button>
+            {% endfor %}
+            {% if can_edit %}
+            <button type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    title="クリア"
+                    onclick="setEval({{ subject.id }}, {{ obs_i }}, null, this)">
+              ✕
+            </button>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const YEAR   = {{ year }};
+const TERM   = {{ term }};
+const TARGET_ID = {{ target_id }};
+const RATES  = {
+  excellent: {{ rates.get('eval_excellent', 150) }},
+  good:      {{ rates.get('eval_good', 20) }},
+  poor:      0
+};
+
+function evalPay(ev) {
+  if (ev === '◎') return RATES.excellent;
+  if (ev === '〇') return RATES.good;
+  return 0;
+}
+
+// 現在の観点評価を subject_id → [e1, e2, e3] で管理
+const currentEvals = {
+  {% for subject in subjects %}
+  "{{ subject.id }}": [
+    {{ '"' ~ grade_records[subject.id]['eval_1'] ~ '"' if subject.id in grade_records and grade_records[subject.id]['eval_1'] else 'null' }},
+    {{ '"' ~ grade_records[subject.id]['eval_2'] ~ '"' if subject.id in grade_records and grade_records[subject.id]['eval_2'] else 'null' }},
+    {{ '"' ~ grade_records[subject.id]['eval_3'] ~ '"' if subject.id in grade_records and grade_records[subject.id]['eval_3'] else 'null' }}
+  ],
+  {% endfor %}
+};
+
+async function setEval(subjectId, obsIndex, evalVal, clickedBtn) {
+  // クリアボタン（✕）のとき evalVal は null
+  const sending = (clickedBtn && clickedBtn.textContent.trim() === '✕') ? null : evalVal;
+
+  const res = await fetch('/grades/save_ajax', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      year: YEAR, term: TERM,
+      user_id: TARGET_ID,
+      subject_id: subjectId,
+      obs_index: obsIndex,
+      eval_val: sending
+    })
+  });
+  const data = await res.json();
+  if (!res.ok) { alert(data.error || 'エラーが発生しました'); return; }
+
+  // currentEvalsを更新
+  currentEvals[subjectId][obsIndex - 1] = sending;
+
+  // この教科の3観点ボタンをすべて再描画
+  for (let obs = 1; obs <= 3; obs++) {
+    const newVal = currentEvals[subjectId][obs - 1];
+    const btns = document.querySelectorAll(
+      `[data-subject-id="${subjectId}"][data-obs="${obs}"]`
+    );
+    btns.forEach(btn => {
+      const ev = btn.getAttribute('data-eval');
+      btn.className = btn.className.replace(/btn-(warning|success|secondary|outline-secondary)/g, '');
+      if (ev === newVal) {
+        if (ev === '◎') btn.classList.add('btn-warning');
+        else if (ev === '〇') btn.classList.add('btn-success');
+        else btn.classList.add('btn-secondary');
+      } else {
+        btn.classList.add('btn-outline-secondary');
+      }
+    });
+  }
+
+  // 教科ごとの給与表示
+  const subjectPay = currentEvals[subjectId].reduce((s, e) => s + evalPay(e), 0);
+  const spEl = document.getElementById(`subject-pay-${subjectId}`);
+  if (spEl) spEl.textContent = `+¥${subjectPay.toLocaleString()}`;
+
+  // 学業給合計を更新
+  const totalEl = document.getElementById('academic-pay-total');
+  if (totalEl) totalEl.textContent = `¥${data.academic_pay.toLocaleString()}`;
+}
+
+function changeYear() {
+  const y = document.getElementById('year-input').value;
+  const url = new URL(window.location);
+  url.searchParams.set('year', y);
+  window.location = url;
+}
+</script>
+{% endblock %}

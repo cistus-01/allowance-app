@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}ホーム{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ current_user.name }}のページ</h2>
+<p class="text-muted mb-3">{{ today.year }}年{{ today.month }}月</p>
+
+<div class="row g-3 mb-4">
+  <div class="col-6">
+    <div class="summary-box text-center">
+      <div class="text-muted small">今月の獲得予定</div>
+      <div class="amount">¥{{ '{:,}'.format(salary.total) }}</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="summary-box text-center">
+      <div class="text-muted small">現在の所持金</div>
+      <div class="amount {% if balance < 0 %}text-danger{% endif %}">
+        ¥{{ '{:,}'.format(balance) }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-6">
+    <a href="{{ url_for('chores.index') }}" class="text-decoration-none">
+      <div class="card h-100 text-center p-3" style="cursor:pointer;">
+        <i class="bi bi-check2-square fs-1 text-success mb-2"></i>
+        <div class="fw-bold">仕事の確認・入力</div>
+        <div class="text-muted small">今日の家事をチェック</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6">
+    <a href="{{ url_for('grades.index') }}" class="text-decoration-none">
+      <div class="card h-100 text-center p-3" style="cursor:pointer;">
+        <i class="bi bi-star-fill fs-1 text-warning mb-2"></i>
+        <div class="fw-bold">成績の確認</div>
+        <div class="text-muted small">学業給を確認</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6">
+    <a href="{{ url_for('finance.index') }}" class="text-decoration-none">
+      <div class="card h-100 text-center p-3" style="cursor:pointer;">
+        <i class="bi bi-wallet2 fs-1 text-primary mb-2"></i>
+        <div class="fw-bold">私の収支表</div>
+        <div class="text-muted small">収入・支出を記録</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6">
+    <a href="{{ url_for('compare.monthly') }}" class="text-decoration-none">
+      <div class="card h-100 text-center p-3" style="cursor:pointer;">
+        <i class="bi bi-arrow-left-right fs-1 text-info mb-2"></i>
+        <div class="fw-bold">先月と比較</div>
+        <div class="text-muted small">頑張り具合を比べよう</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-12">
+    <a href="{{ url_for('admin.rates') }}" class="text-decoration-none">
+      <div class="card text-center p-2" style="cursor:pointer;">
+        <i class="bi bi-table fs-3 text-secondary me-2 d-inline"></i>
+        <span class="fw-bold">単価表を見る</span>
+      </div>
+    </a>
+  </div>
+</div>
+{% endblock %}

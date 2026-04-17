@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: allowance-app
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn run:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_PATH
+        value: /data/allowance.db
+    disk:
+      name: allowance-data
+      mountPath: /data
+      sizeGB: 1

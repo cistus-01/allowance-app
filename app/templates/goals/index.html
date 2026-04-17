@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% block title %}ほしいものリスト{% endblock %}
+{% block head %}
+<style>
+  .goal-card {
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,.08);
+    transition: transform .15s;
+  }
+  .goal-card:hover { transform: translateY(-2px); }
+  .goal-card.achieved { opacity: .6; }
+  .progress { height: 14px; border-radius: 8px; }
+  .progress-bar { border-radius: 8px; transition: width .6s ease; }
+  .goal-emoji { font-size: 2.4rem; line-height: 1; }
+  .goal-amount { font-size: 1.1rem; font-weight: bold; color: var(--primary); }
+  .remaining-badge { font-size: .75rem; background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 20px; }
+  .achieved-badge { font-size: .75rem; background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 20px; }
+  .emoji-options { display: flex; gap: 6px; flex-wrap: wrap; }
+  .emoji-opt { font-size: 1.4rem; cursor: pointer; padding: 4px; border-radius: 8px; border: 2px solid transparent; transition: border-color .1s; }
+  .emoji-opt:hover, .emoji-opt.selected { border-color: var(--primary); }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h2 class="mb-0">🎯 ほしいものリスト</h2>
+  {% if current_user.is_parent and children %}
+  <select class="form-select form-select-sm w-auto" onchange="location.href='?child_id='+this.value">
+    {% for c in children %}
+    <option value="{{ c.id }}" {% if c.id == target_id %}selected{% endif %}>{{ c.name }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
+</div>
+
+{% if target_id %}
+
+<!-- 現在の残高 -->
+<div class="summary-box d-flex align-items-center gap-3 mb-4">
+  <div class="fs-3">💰</div>
+  <div>
+    <div class="text-muted small">いまの所持金</div>
+    <div class="amount {% if balance < 0 %}text-danger{% endif %}">¥{{ '{:,}'.format(balance) }}</div>
+  </div>
+</div>
+
+<!-- 目標リスト -->
+{% set active_goals = goals | selectattr('is_achieved', 'equalto', 0) | list %}
+{% set done_goals = goals | selectattr('is_achieved', 'equalto', 1) | list %}
+
+{% if active_goals %}
+<h5 class="mb-3 text-muted">がんばり中 🔥</h5>
+<div class="row g-3 mb-4">
+  {% for goal in active_goals %}
+  {% set pct = [[(balance / goal.target_amount * 100) | int, 0] | max, 100] | min %}
+  {% set remaining = goal.target_amount - balance %}
+  <div class="col-12 col-md-6">
+    <div class="goal-card card p-3">
+      <div class="d-flex align-items-center gap-3 mb-2">
+        <div class="goal-emoji">{{ goal.emoji }}</div>
+        <div class="flex-grow-1">
+          <div class="fw-bold fs-5">{{ goal.name }}</div>
+          <div class="goal-amount">¥{{ '{:,}'.format(goal.target_amount) }}</div>
+        </div>
+        {% if remaining <= 0 %}
+        <span class="achieved-badge">もう買える！</span>
+        {% else %}
+        <span class="remaining-badge">あと¥{{ '{:,}'.format(remaining) }}</span>
+        {% endif %}
+      </div>
+
+      <div class="progress mb-1">
+        <div class="progress-bar bg-success" style="width: {{ pct }}%"></div>
+      </div>
+      <div class="d-flex justify-content-between">
+        <small class="text-muted">{{ pct }}% たまった</small>
+        <small class="text-muted">¥{{ '{:,}'.format([balance, goal.target_amount] | min | int) }} / ¥{{ '{:,}'.format(goal.target_amount) }}</small>
+      </div>
+
+      {% if current_user.is_parent %}
+      <div class="d-flex gap-2 mt-3">
+        <form method="post" action="{{ url_for('goals.achieve', goal_id=goal.id) }}" class="flex-grow-1">
+          <button class="btn btn-success btn-sm w-100">🎉 達成！</button>
+        </form>
+        <form method="post" action="{{ url_for('goals.delete', goal_id=goal.id) }}"
+              onsubmit="return confirm('削除しますか？')">
+          <button class="btn btn-outline-danger btn-sm">削除</button>
+        </form>
+      </div>
+      {% else %}
+      <div class="d-flex justify-content-end mt-2">
+        <form method="post" action="{{ url_for('goals.delete', goal_id=goal.id) }}"
+              onsubmit="return confirm('削除しますか？')">
+          <button class="btn btn-outline-secondary btn-sm">削除</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- 達成済み -->
+{% if done_goals %}
+<h5 class="mb-3 text-muted">達成済み 🏆</h5>
+<div class="row g-3 mb-4">
+  {% for goal in done_goals %}
+  <div class="col-12 col-md-6">
+    <div class="goal-card achieved card p-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="goal-emoji">{{ goal.emoji }}</div>
+        <div class="flex-grow-1">
+          <div class="fw-bold">{{ goal.name }}</div>
+          <div class="text-muted small">¥{{ '{:,}'.format(goal.target_amount) }}</div>
+        </div>
+        <span class="achieved-badge">✅ 達成</span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not goals %}
+<div class="text-center text-muted py-5">
+  <div class="fs-1 mb-3">🎯</div>
+  <p>まだ目標がありません。<br>ほしいものを登録してみよう！</p>
+</div>
+{% endif %}
+
+<!-- 追加フォーム -->
+<div class="card mt-2">
+  <div class="card-header">＋ 新しい目標を追加</div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('goals.add') }}">
+      {% if current_user.is_parent %}
+      <input type="hidden" name="child_id" value="{{ target_id }}">
+      {% endif %}
+
+      <div class="mb-3">
+        <label class="form-label fw-bold">絵文字を選ぼう</label>
+        <div class="emoji-options" id="emojiOptions">
+          {% for e in ['🎮','📚','👟','🎨','🏀','🎵','🍕','🌈','⚽','🎯','🚲','🎁','💻','🦄','🍦'] %}
+          <span class="emoji-opt {% if loop.first %}selected{% endif %}"
+                onclick="selectEmoji(this, '{{ e }}')">{{ e }}</span>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="emoji" id="emojiInput" value="🎮">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-bold">ほしいもの</label>
+        <input type="text" name="name" class="form-control" placeholder="例：ポケモンカード" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-bold">目標金額</label>
+        <div class="input-group">
+          <span class="input-group-text">¥</span>
+          <input type="number" name="target_amount" class="form-control" min="1" placeholder="例：3000" required>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100">追加する 🎯</button>
+    </form>
+  </div>
+</div>
+
+{% else %}
+<div class="text-center text-muted py-5">子どもを選択してください。</div>
+{% endif %}
+
+<script>
+function selectEmoji(el, emoji) {
+  document.querySelectorAll('.emoji-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('emojiInput').value = emoji;
+}
+</script>
+{% endblock %}

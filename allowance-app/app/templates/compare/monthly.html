@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block title %}先月と比較{% endblock %}
+{% block content %}
+
+{# 親の場合：子供切り替え #}
+{% if children %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  {% for child in children %}
+  <a href="{{ url_for('compare.monthly', child_id=child.id, year=year, month=month) }}"
+     class="btn {% if child.id == target_id %}btn-primary{% else %}btn-outline-primary{% endif %} fw-bold px-3">
+    {{ child.name }}（{{ child.grade }}年）
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="d-flex align-items-center justify-content-between mb-2">
+  <a href="{{ url_for('compare.monthly', child_id=target_id, year=nav_prev_year, month=nav_prev_month) }}"
+     class="btn btn-outline-secondary btn-sm">&laquo; 前</a>
+  <h3 class="mb-0">{{ target_user.name }}の先月比較</h3>
+  <a href="{{ url_for('compare.monthly', child_id=target_id, year=nav_next_year, month=nav_next_month) }}"
+     class="btn btn-outline-secondary btn-sm">次 &raquo;</a>
+</div>
+<p class="text-center text-muted mb-3">{{ prev_year }}年{{ prev_month }}月 → {{ year }}年{{ month }}月</p>
+
+{# 総合給与比較 #}
+<div class="card mb-4">
+  <div class="card-header">今月の獲得予定額</div>
+  <div class="card-body">
+    <div class="row g-3 text-center">
+      <div class="col-5">
+        <div class="text-muted small">{{ prev_year }}年{{ prev_month }}月</div>
+        <div class="amount text-secondary">¥{{ '{:,}'.format(prev_salary.total) }}</div>
+      </div>
+      <div class="col-2 d-flex align-items-center justify-content-center">
+        {% set diff = this_salary.total - prev_salary.total %}
+        {% if diff > 0 %}
+        <span class="fs-3">📈</span>
+        {% elif diff < 0 %}
+        <span class="fs-3">📉</span>
+        {% else %}
+        <span class="fs-3">➡️</span>
+        {% endif %}
+      </div>
+      <div class="col-5">
+        <div class="text-muted small">{{ year }}年{{ month }}月</div>
+        <div class="amount {% if diff > 0 %}text-success{% elif diff < 0 %}text-danger{% endif %}">
+          ¥{{ '{:,}'.format(this_salary.total) }}
+        </div>
+      </div>
+    </div>
+    {% if diff != 0 %}
+    <div class="text-center mt-2 fw-bold {% if diff > 0 %}text-success{% else %}text-danger{% endif %}">
+      {{ '+' if diff > 0 else '' }}¥{{ '{:,}'.format(diff) }}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# 家事回数比較 #}
+<div class="card mb-4">
+  <div class="card-header">家事の回数比較</div>
+  <div class="card-body p-0">
+    <table class="table table-bordered text-center mb-0">
+      <thead style="background:#d4edda;">
+        <tr>
+          <th>家事</th>
+          <th>{{ prev_year }}/{{ prev_month }}</th>
+          <th>{{ year }}/{{ month }}</th>
+          <th>増減</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ct in chore_types %}
+        {% set prev_cnt = prev_data.summary.get(ct.id ~ '', 0) %}
+        {% set this_cnt = this_data.summary.get(ct.id ~ '', 0) %}
+        {% set d = this_cnt - prev_cnt %}
+        <tr>
+          <td class="fw-bold">{{ ct.name }}</td>
+          <td>{{ prev_cnt }}回</td>
+          <td class="fw-bold">{{ this_cnt }}回</td>
+          <td class="fw-bold {% if d > 0 %}text-success{% elif d < 0 %}text-danger{% endif %}">
+            {{ '+' if d > 0 else '' }}{{ d }}
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="table-secondary">
+          <td class="fw-bold">合計</td>
+          <td>{{ prev_data.total_count }}回</td>
+          <td class="fw-bold">{{ this_data.total_count }}回</td>
+          {% set total_diff = this_data.total_count - prev_data.total_count %}
+          <td class="fw-bold {% if total_diff > 0 %}text-success{% elif total_diff < 0 %}text-danger{% endif %}">
+            {{ '+' if total_diff > 0 else '' }}{{ total_diff }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# 家事別グラフ #}
+<div class="card mb-4">
+  <div class="card-header">家事別グラフ</div>
+  <div class="card-body">
+    {% for ct in chore_types %}
+    {% set prev_cnt = prev_data.summary.get(ct.id ~ '', 0) %}
+    {% set this_cnt = this_data.summary.get(ct.id ~ '', 0) %}
+    {% set bar_max = [prev_cnt, this_cnt, 1] | max %}
+    <div class="mb-3">
+      <div class="fw-bold small mb-1">{{ ct.name }}</div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="text-muted small" style="width:60px;">先月</span>
+        <div class="progress flex-grow-1" style="height:14px;">
+          <div class="progress-bar bg-secondary" style="width:{{ (prev_cnt / bar_max * 100)|int }}%;">
+            {% if prev_cnt > 0 %}{{ prev_cnt }}回{% endif %}
+          </div>
+        </div>
+        <span class="small" style="width:30px;">{{ prev_cnt }}回</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fw-bold small" style="width:60px;">今月</span>
+        <div class="progress flex-grow-1" style="height:14px;">
+          <div class="progress-bar" style="width:{{ (this_cnt / bar_max * 100)|int }}%; background:var(--primary);">
+            {% if this_cnt > 0 %}{{ this_cnt }}回{% endif %}
+          </div>
+        </div>
+        <span class="small" style="width:30px;">{{ this_cnt }}回</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{# 給与内訳比較 #}
+<div class="card mb-3">
+  <div class="card-header">給与内訳</div>
+  <div class="card-body p-0">
+    <table class="table table-bordered text-center mb-0">
+      <thead style="background:#d4edda;">
+        <tr><th>項目</th><th>先月</th><th>今月</th></tr>
+      </thead>
+      <tbody>
+        {% for label, prev_val, this_val in [
+          ('基本給', prev_salary.base_pay, this_salary.base_pay),
+          ('学年給', prev_salary.grade_pay, this_salary.grade_pay),
+          ('成績給', prev_salary.academic_pay, this_salary.academic_pay),
+          ('家事給', prev_salary.chore_pay, this_salary.chore_pay),
+          ('合計', prev_salary.total, this_salary.total),
+        ] %}
+        <tr {% if label == '合計' %}class="table-success fw-bold"{% endif %}>
+          <td>{{ label }}</td>
+          <td>¥{{ '{:,}'.format(prev_val) }}</td>
+          <td>¥{{ '{:,}'.format(this_val) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

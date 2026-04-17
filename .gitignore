@@ -1,0 +1,9 @@
+*.db
+*.sqlite
+__pycache__/
+*.pyc
+.env
+/data/
+*.docx
+{app
+.claude/

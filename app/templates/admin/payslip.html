@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}給料明細{% endblock %}
+{% block head %}
+<style>
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff !important; }
+    .container { max-width: 100% !important; padding: 0 !important; }
+    .slip-card { break-inside: avoid; page-break-inside: avoid; box-shadow: none !important; border: 2px solid #2e7d32 !important; }
+  }
+  .slip-card {
+    border: 2px solid #2e7d32;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .slip-header {
+    background: #2e7d32;
+    color: #fff;
+    padding: 8px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: .95rem;
+  }
+  .slip-name { font-size: 1.2rem; font-weight: bold; }
+  .slip-total { font-size: 1.4rem; font-weight: bold; letter-spacing: .03em; }
+  .slip-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .slip-table th, .slip-table td {
+    border: 1px solid #a5d6a7;
+    padding: 5px 10px;
+    text-align: center;
+  }
+  .slip-table thead th { background: #c8e6c9; font-weight: bold; }
+  .slip-table .label-cell { background: #f1f8e9; font-weight: bold; text-align: left; }
+  .slip-table .amount { font-weight: bold; color: #1b5e20; }
+  .chore-section th { background: #e8f5e9; }
+  .total-row { background: #a5d6a7 !important; font-weight: bold; font-size: 1rem; }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="no-print d-flex align-items-center justify-content-between mb-3">
+  <h3 class="mb-0"><i class="bi bi-printer me-2"></i>給料明細</h3>
+  <div class="d-flex gap-2 align-items-center">
+    <a href="{{ url_for('admin.payslip', year=prev_year, month=prev_month) }}"
+       class="btn btn-outline-secondary btn-sm">&laquo; 先月</a>
+    <span class="fw-bold">{{ year }}年{{ month }}月</span>
+    <a href="{{ url_for('admin.payslip', year=next_year, month=next_month) }}"
+       class="btn btn-outline-secondary btn-sm">来月 &raquo;</a>
+    <button onclick="window.print()" class="btn btn-primary btn-sm">
+      <i class="bi bi-printer me-1"></i>印刷する
+    </button>
+  </div>
+</div>
+
+{% for slip in slips %}
+<div class="slip-card">
+  <div class="slip-header">
+    <div>
+      <span class="slip-name">{{ slip.user.name }}</span>
+      <span class="ms-2 opacity-75">（{{ slip.user.grade }}年）</span>
+    </div>
+    <div class="text-end">
+      <div class="opacity-75 small">{{ year }}年{{ month }}月　支給分</div>
+      <div class="slip-total">¥{{ '{:,}'.format(slip.total) }}</div>
+    </div>
+  </div>
+
+  <div class="p-2">
+    <table class="slip-table">
+      <thead>
+        <tr>
+          <th style="width:25%">氏名</th>
+          <th style="width:20%">支給額</th>
+          <th style="width:15%">基本給</th>
+          <th colspan="2">学業給</th>
+        </tr>
+        <tr>
+          <th></th><th></th><th></th>
+          <th style="width:20%">学年給</th>
+          <th style="width:20%">成績給</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="label-cell">{{ slip.user.name }}</td>
+          <td class="amount">¥{{ '{:,}'.format(slip.total) }}</td>
+          <td>¥{{ slip.base_pay }}</td>
+          <td>¥{{ '{:,}'.format(slip.grade_pay) }}</td>
+          <td>¥{{ '{:,}'.format(slip.academic_pay) }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table class="slip-table mt-1 chore-section">
+      <thead>
+        <tr>
+          <td colspan="{{ slip.chore_detail | length + 1 }}" class="label-cell" style="background:#e8f5e9;">
+            インプレッション（¥{{ '{:,}'.format(slip.chore_total) }}）
+          </td>
+        </tr>
+        <tr>
+          {% for cd in slip.chore_detail %}
+          <th>{{ cd.name }}（{{ cd.count }}）</th>
+          {% endfor %}
+          <th>合計</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          {% for cd in slip.chore_detail %}
+          <td class="amount">¥{{ '{:,}'.format(cd.pay) }}</td>
+          {% endfor %}
+          <td class="amount total-row">¥{{ '{:,}'.format(slip.chore_total) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+<div class="no-print mt-3">
+  <a href="{{ url_for('home.index') }}" class="btn btn-outline-secondary btn-sm">← ホームに戻る</a>
+</div>
+{% endblock %}
