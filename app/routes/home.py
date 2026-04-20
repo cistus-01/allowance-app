@@ -7,8 +7,9 @@ from datetime import date
 bp = Blueprint('home', __name__)
 
 @bp.route('/')
-@login_required
 def index():
+    if not current_user.is_authenticated:
+        return render_template('home/lp.html')
     db = get_db()
     today = date.today()
 
