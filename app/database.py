@@ -31,14 +31,10 @@ def init_db():
     # 初期データは各テーブルが空の時だけ挿入
     _seed_if_empty(db)
 
-    # 親アカウントがなければ作成
-    existing = db.execute("SELECT id FROM users WHERE role='parent'").fetchone()
-    if not existing:
-        from werkzeug.security import generate_password_hash
-        db.execute(
-            "INSERT INTO users (name, username, password_hash, role) VALUES (?, ?, ?, ?)",
-            ('親', 'parent', generate_password_hash('parent123'), 'parent')
-        )
+    # family_id列がなければ追加（既存DB対応）
+    cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+    if 'family_id' not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN family_id INTEGER")
         db.commit()
 
     db.close()

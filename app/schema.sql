@@ -129,3 +129,20 @@ CREATE TABLE IF NOT EXISTS pay_rates (
     value INTEGER NOT NULL,
     label TEXT NOT NULL
 );
+
+-- ファミリー（課金単位）テーブル
+CREATE TABLE IF NOT EXISTS families (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    owner_user_id INTEGER NOT NULL,
+    stripe_customer_id TEXT,
+    stripe_subscription_id TEXT,
+    subscription_status TEXT DEFAULT 'trial',
+    trial_ends_at DATETIME,
+    plan_ends_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_user_id) REFERENCES users(id)
+);
+
+-- users テーブルにfamily_id列を追加（ALTER TABLE - 既存DB対応）
+-- CREATE TABLE側には含めず、init_db()でALTERする

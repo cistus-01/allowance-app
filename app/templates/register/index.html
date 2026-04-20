@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}新規登録 — おこづかい帳{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-4">
+  <div class="col-md-6 col-sm-10">
+    <div class="card">
+      <div class="card-header text-center py-3">
+        <i class="bi bi-coin fs-3 me-2"></i>おこづかい帳 — 新規登録
+      </div>
+      <div class="card-body p-4">
+        <p class="text-muted text-center mb-4">
+          <strong>30日間無料トライアル</strong>。クレジットカード不要。<br>
+          トライアル後は月額<strong>¥480</strong>（ファミリー全員分）。
+        </p>
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label fw-bold">家族名 <span class="text-danger">*</span></label>
+            <input type="text" name="family_name" class="form-control form-control-lg"
+                   placeholder="例: 田中家" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">保護者の名前 <span class="text-danger">*</span></label>
+            <input type="text" name="parent_name" class="form-control"
+                   placeholder="例: お父さん" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">ログインID <span class="text-danger">*</span></label>
+            <input type="text" name="username" class="form-control"
+                   placeholder="英数字のみ (例: tanaka2026)" required pattern="[a-zA-Z0-9_]+">
+            <div class="form-text">英数字・アンダースコアのみ</div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-bold">パスワード <span class="text-danger">*</span></label>
+            <input type="password" name="password" class="form-control"
+                   placeholder="6文字以上" required minlength="6">
+          </div>
+          <button type="submit" class="btn btn-primary w-100 btn-lg">
+            30日間無料で始める
+          </button>
+        </form>
+        <hr class="my-4">
+        <p class="text-center text-muted mb-0">
+          すでにアカウントをお持ちの方は
+          <a href="{{ url_for('auth.login') }}">ログイン</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

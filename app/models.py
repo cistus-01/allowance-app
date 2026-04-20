@@ -8,6 +8,7 @@ class User(UserMixin):
         self.password_hash = row['password_hash']
         self.role = row['role']
         self.grade = row['grade']
+        self.family_id = row['family_id'] if 'family_id' in row.keys() else None
 
     @property
     def is_parent(self):
