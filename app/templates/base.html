@@ -35,6 +35,9 @@
     @media (max-width: 600px) {
       .calendar-cell { min-height: 50px; font-size: .75rem; }
       .amount { font-size: 1.1rem; }
+      .card.h-100.text-center.p-3 { min-height: 80px; }
+      .btn { min-height: 44px; }
+      input, select, textarea { font-size: 16px !important; } /* iOSズーム防止 */
     }
   </style>
   {% block head %}{% endblock %}
@@ -43,23 +46,34 @@
 <nav class="navbar navbar-expand-lg">
   <div class="container">
     <a class="navbar-brand fw-bold" href="{{ url_for('home.index') }}">
-      <i class="bi bi-coin me-1"></i>給料計算アプリ
+      <i class="bi bi-coin me-1"></i>おこづかい帳
     </a>
     {% if current_user.is_authenticated %}
-    <div class="ms-auto d-flex align-items-center gap-2">
-      <a href="{{ url_for('goals.index') }}" class="btn btn-outline-light btn-sm">
-        🎯 ほしいもの
-      </a>
-      {% if current_user.is_parent %}
-      <a href="{{ url_for('billing.index') }}" class="btn btn-outline-warning btn-sm">
-        <i class="bi bi-credit-card"></i> プラン
-      </a>
-      {% endif %}
-      <span class="text-white me-2">
-        <i class="bi bi-person-circle"></i> {{ current_user.name }}
-        {% if current_user.is_parent %}<span class="badge bg-warning text-dark ms-1">親</span>{% endif %}
-      </span>
-      <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-light btn-sm">ログアウト</a>
+    <button class="navbar-toggler border-light" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+      <i class="bi bi-list text-white fs-4"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navMenu">
+      <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2 mt-2 mt-lg-0">
+        <li class="nav-item">
+          <a href="{{ url_for('goals.index') }}" class="nav-link">🎯 ほしいもの</a>
+        </li>
+        {% if current_user.is_parent %}
+        <li class="nav-item">
+          <a href="{{ url_for('billing.index') }}" class="nav-link">
+            <i class="bi bi-credit-card"></i> プラン
+          </a>
+        </li>
+        {% endif %}
+        <li class="nav-item">
+          <span class="nav-link text-white-50">
+            <i class="bi bi-person-circle"></i> {{ current_user.name }}
+            {% if current_user.is_parent %}<span class="badge bg-warning text-dark ms-1">親</span>{% endif %}
+          </span>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('auth.logout') }}" class="nav-link">ログアウト</a>
+        </li>
+      </ul>
     </div>
     {% endif %}
   </div>
