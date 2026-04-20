@@ -13,9 +13,10 @@ def index():
         family_name = request.form.get('family_name', '').strip()
         parent_name = request.form.get('parent_name', '').strip()
         username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
 
-        if not all([family_name, parent_name, username, password]):
+        if not all([family_name, parent_name, username, email, password]):
             flash('すべての項目を入力してください。', 'danger')
             return render_template('register/index.html')
 
@@ -27,6 +28,11 @@ def index():
         existing = db.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone()
         if existing:
             flash('そのユーザー名はすでに使われています。', 'danger')
+            return render_template('register/index.html')
+
+        email_taken = db.execute('SELECT id FROM users WHERE email = ?', (email,)).fetchone()
+        if email_taken:
+            flash('そのメールアドレスはすでに登録されています。', 'danger')
             return render_template('register/index.html')
 
         trial_ends = datetime.utcnow() + timedelta(days=30)
@@ -41,9 +47,9 @@ def index():
 
         # 親ユーザー作成
         db.execute(
-            '''INSERT INTO users (name, username, password_hash, role, family_id)
-               VALUES (?, ?, ?, 'parent', ?)''',
-            (parent_name, username, generate_password_hash(password), family_id)
+            '''INSERT INTO users (name, username, email, password_hash, role, family_id)
+               VALUES (?, ?, ?, ?, 'parent', ?)''',
+            (parent_name, username, email, generate_password_hash(password), family_id)
         )
         user_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 

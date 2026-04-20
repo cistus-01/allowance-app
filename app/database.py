@@ -31,11 +31,13 @@ def init_db():
     # 初期データは各テーブルが空の時だけ挿入
     _seed_if_empty(db)
 
-    # family_id列がなければ追加（既存DB対応）
+    # 列がなければ追加（既存DB対応）
     cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
     if 'family_id' not in cols:
         db.execute("ALTER TABLE users ADD COLUMN family_id INTEGER")
-        db.commit()
+    if 'email' not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    db.commit()
 
     db.close()
     current_app.teardown_appcontext(close_db)
