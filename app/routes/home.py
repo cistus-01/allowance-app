@@ -1,17 +1,31 @@
-from flask import Blueprint, render_template, redirect, url_for, request
-from flask_login import login_required, current_user
+from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask_login import current_user
 from ..database import get_db
 from ..salary import calc_monthly_salary, calc_balance
-from ..utils import get_family_children, verify_child_ownership, subscription_required
-from datetime import date
+from ..utils import get_family_children, verify_child_ownership, get_family
+from datetime import date, datetime
 
 bp = Blueprint('home', __name__)
 
 @bp.route('/')
-@subscription_required
 def index():
     if not current_user.is_authenticated:
         return render_template('home/lp.html')
+
+    # Subscription check for parents
+    if current_user.role == 'parent':
+        db_for_check = get_db()
+        family = get_family(db_for_check)
+        if family:
+            status = family['subscription_status']
+            if status == 'trial':
+                trial_end = family['trial_ends_at']
+                if trial_end and datetime.fromisoformat(trial_end) <= datetime.utcnow():
+                    flash('トライアル期間が終了しました。プランにご登録ください。', 'warning')
+                    return redirect(url_for('billing.index'))
+            elif status not in ('active', 'trial'):
+                flash('トライアル期間が終了しました。プランにご登録ください。', 'warning')
+                return redirect(url_for('billing.index'))
     db = get_db()
     today = date.today()
 
