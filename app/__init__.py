@@ -25,7 +25,7 @@ def create_app():
 
     with app.app_context():
         init_db()
-        from .routes import auth, home, chores, grades, finance, admin, compare, goals, setup, register, billing, seo
+        from .routes import auth, home, chores, grades, finance, admin, compare, goals, setup, register, billing, seo, jarvis
         app.register_blueprint(auth.bp)
         app.register_blueprint(home.bp)
         app.register_blueprint(chores.bp)
@@ -38,5 +38,6 @@ def create_app():
         app.register_blueprint(register.bp)
         app.register_blueprint(billing.bp)
         app.register_blueprint(seo.bp)
+        app.register_blueprint(jarvis.bp)
 
     return app

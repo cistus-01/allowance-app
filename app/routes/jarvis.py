@@ -1,0 +1,72 @@
+import os
+from flask import Blueprint, jsonify, request
+from datetime import datetime
+from ..database import get_db
+
+bp = Blueprint('jarvis', __name__, url_prefix='/jarvis')
+
+JARVIS_KEY = os.environ.get('JARVIS_KEY', 'jarvis-2026')
+
+def require_key(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        key = request.args.get('key') or request.headers.get('X-Jarvis-Key', '')
+        if key != JARVIS_KEY:
+            return jsonify({'error': 'unauthorized'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+@bp.route('/stats')
+@require_key
+def stats():
+    db = get_db()
+    now = datetime.utcnow()
+
+    families = db.execute('SELECT * FROM families ORDER BY created_at DESC').fetchall()
+    users = db.execute('SELECT * FROM users WHERE role="parent" ORDER BY created_at DESC').fetchall()
+
+    trial_active = []
+    trial_expired = []
+    paid = []
+    expired = []
+
+    for f in families:
+        status = f['subscription_status']
+        if status == 'trial':
+            if f['trial_ends_at'] and datetime.fromisoformat(f['trial_ends_at']) > now:
+                trial_active.append(f)
+            else:
+                trial_expired.append(f)
+        elif status == 'active':
+            paid.append(f)
+        else:
+            expired.append(f)
+
+    def family_detail(f):
+        days_left = None
+        if f['subscription_status'] == 'trial' and f['trial_ends_at']:
+            ends = datetime.fromisoformat(f['trial_ends_at'])
+            days_left = (ends - now).days
+        return {
+            'id': f['id'],
+            'name': f['name'],
+            'status': f['subscription_status'],
+            'trial_days_left': days_left,
+            'stripe_customer_id': f['stripe_customer_id'],
+            'created_at': f['created_at'],
+        }
+
+    return jsonify({
+        'summary': {
+            'total_families': len(families),
+            'trial_active': len(trial_active),
+            'trial_expired': len(trial_expired),
+            'paid': len(paid),
+            'expired_or_other': len(expired),
+            'monthly_revenue_jpy': len(paid) * 480,
+        },
+        'recent_signups': [family_detail(f) for f in families[:10]],
+        'paid_families': [family_detail(f) for f in paid],
+        'checked_at': now.isoformat(),
+    })
