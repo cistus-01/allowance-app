@@ -1,12 +1,14 @@
-from flask import Blueprint, render_template, redirect, url_for, request, session
+from flask import Blueprint, render_template, redirect, url_for, request
 from flask_login import login_required, current_user
 from ..database import get_db
 from ..salary import calc_monthly_salary, calc_balance
+from ..utils import get_family_children, verify_child_ownership, subscription_required
 from datetime import date
 
 bp = Blueprint('home', __name__)
 
 @bp.route('/')
+@subscription_required
 def index():
     if not current_user.is_authenticated:
         return render_template('home/lp.html')
@@ -14,10 +16,7 @@ def index():
     today = date.today()
 
     if current_user.is_parent:
-        # 親：表示する子供を選択できる
-        children = db.execute(
-            "SELECT * FROM users WHERE role='child' ORDER BY grade DESC"
-        ).fetchall()
+        children = get_family_children(db)
         selected_id = request.args.get('child_id', type=int)
         if selected_id is None and children:
             selected_id = children[0]['id']
@@ -25,7 +24,7 @@ def index():
         salary = None
         balance = None
         if selected_id:
-            row = db.execute('SELECT * FROM users WHERE id=?', (selected_id,)).fetchone()
+            row = verify_child_ownership(db, selected_id)
             if row:
                 from ..models import User
                 selected_child = User(row)

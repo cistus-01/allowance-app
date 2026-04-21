@@ -2,15 +2,19 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from ..database import get_db
 from ..salary import get_pay_rates, get_prev_term, month_to_term
+from ..utils import get_family_children, verify_child_ownership
 from datetime import date
 
 bp = Blueprint('grades', __name__, url_prefix='/grades')
 
 EVAL_VALUES = ['◎', '〇', '△']
 
-def get_target_user_id():
+def get_target_user_id(db):
     if current_user.is_parent:
-        return request.args.get('child_id', type=int) or request.form.get('child_id', type=int)
+        child_id = request.args.get('child_id', type=int) or request.form.get('child_id', type=int)
+        if child_id and not verify_child_ownership(db, child_id):
+            return None
+        return child_id
     return current_user.id
 
 def calc_display_academic_pay(grade_records, rates):
@@ -35,9 +39,9 @@ def index():
     year = request.args.get('year', today.year, type=int)
     term = request.args.get('term', 1, type=int)
 
-    target_id = get_target_user_id()
+    target_id = get_target_user_id(db)
     if target_id is None and current_user.is_parent:
-        children = db.execute("SELECT * FROM users WHERE role='child' ORDER BY grade DESC").fetchall()
+        children = get_family_children(db)
         if children:
             target_id = children[0]['id']
 
@@ -82,7 +86,7 @@ def index():
 
     children = None
     if current_user.is_parent:
-        children = db.execute("SELECT * FROM users WHERE role='child' ORDER BY grade DESC").fetchall()
+        children = get_family_children(db)
 
     return render_template('grades/index.html',
                            target_user=target_user,
@@ -113,6 +117,9 @@ def save_ajax():
     eval_val   = data.get('eval_val')    # '◎','〇','△' or None
 
     # 権限チェック
+    db = get_db()
+    if current_user.is_parent and target_id and not verify_child_ownership(db, int(target_id)):
+        return jsonify({'error': '権限がありません'}), 403
     if current_user.is_child:
         if int(target_id) != current_user.id:
             return jsonify({'error': '権限がありません'}), 403

@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from ..database import get_db
 from ..salary import calc_chore_pay, calc_monthly_salary
+from ..utils import get_family_children, verify_child_ownership
 from datetime import date
 import calendar
 
@@ -40,7 +41,7 @@ def all_children():
     year  = request.args.get('year',  today.year,  type=int)
     month = request.args.get('month', today.month, type=int)
 
-    children   = db.execute("SELECT * FROM users WHERE role='child' ORDER BY grade DESC").fetchall()
+    children   = get_family_children(db)
     chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
 
     data = []
@@ -80,8 +81,10 @@ def monthly():
     # 親が child_id 指定で閲覧可能
     if current_user.is_parent:
         target_id = request.args.get('child_id', type=int)
+        if target_id and not verify_child_ownership(db, target_id):
+            target_id = None
         if not target_id:
-            children = db.execute("SELECT * FROM users WHERE role='child' ORDER BY grade DESC").fetchall()
+            children = get_family_children(db)
             target_id = children[0]['id'] if children else None
     else:
         target_id = current_user.id
@@ -116,7 +119,7 @@ def monthly():
 
     children = None
     if current_user.is_parent:
-        children = db.execute("SELECT * FROM users WHERE role='child' ORDER BY grade DESC").fetchall()
+        children = get_family_children(db)
 
     return render_template('compare/monthly.html',
                            target_user=target_user,

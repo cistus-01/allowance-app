@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from ..database import get_db
 from ..salary import calc_balance
+from ..utils import get_family_children, verify_child_ownership
 
 bp = Blueprint('goals', __name__, url_prefix='/goals')
 
@@ -11,7 +12,9 @@ def index():
     db = get_db()
     if current_user.is_parent:
         child_id = request.args.get('child_id', type=int)
-        children = db.execute("SELECT * FROM users WHERE role='child' ORDER BY grade DESC").fetchall()
+        children = get_family_children(db)
+        if child_id and not verify_child_ownership(db, child_id):
+            child_id = None
         if child_id is None and children:
             child_id = children[0]['id']
         target_id = child_id
@@ -43,6 +46,9 @@ def add():
     db = get_db()
     if current_user.is_parent:
         target_id = request.form.get('child_id', type=int)
+        if target_id and not verify_child_ownership(db, target_id):
+            flash('権限がありません。', 'danger')
+            return redirect(url_for('goals.index'))
     else:
         target_id = current_user.id
 
@@ -68,18 +74,16 @@ def achieve(goal_id):
     if not current_user.is_parent:
         flash('親のみ達成にできます。', 'danger')
         return redirect(url_for('goals.index'))
-
     db = get_db()
     goal = db.execute('SELECT * FROM goals WHERE id=?', (goal_id,)).fetchone()
     if goal:
-        db.execute(
-            "UPDATE goals SET is_achieved=1, achieved_at=CURRENT_TIMESTAMP WHERE id=?",
-            (goal_id,)
-        )
+        if not verify_child_ownership(db, goal['user_id']):
+            flash('権限がありません。', 'danger')
+            return redirect(url_for('goals.index'))
+        db.execute("UPDATE goals SET is_achieved=1, achieved_at=CURRENT_TIMESTAMP WHERE id=?", (goal_id,))
         db.commit()
         flash(f'🎉「{goal["name"]}」達成おめでとう！', 'success')
         return redirect(url_for('goals.index', child_id=goal['user_id']))
-
     return redirect(url_for('goals.index'))
 
 @bp.route('/delete/<int:goal_id>', methods=['POST'])
@@ -88,13 +92,14 @@ def delete(goal_id):
     db = get_db()
     goal = db.execute('SELECT * FROM goals WHERE id=?', (goal_id,)).fetchone()
     if goal:
+        if current_user.is_parent and not verify_child_ownership(db, goal['user_id']):
+            flash('権限がありません。', 'danger')
+            return redirect(url_for('goals.index'))
         if current_user.is_child and goal['user_id'] != current_user.id:
             flash('権限がありません。', 'danger')
             return redirect(url_for('goals.index'))
         db.execute('DELETE FROM goals WHERE id=?', (goal_id,))
         db.commit()
         flash('目標を削除しました。', 'success')
-        return redirect(url_for('goals.index',
-                                child_id=goal['user_id'] if current_user.is_parent else None))
-
+        return redirect(url_for('goals.index', child_id=goal['user_id'] if current_user.is_parent else None))
     return redirect(url_for('goals.index'))

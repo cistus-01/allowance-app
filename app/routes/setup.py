@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify
 from ..database import get_db
 from werkzeug.security import generate_password_hash
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import random
 
 bp = Blueprint('setup', __name__, url_prefix='/setup')
@@ -12,17 +12,33 @@ def run():
     if db.execute("SELECT COUNT(*) as c FROM users").fetchone()['c'] > 0:
         return jsonify({'error': 'already initialized'}), 400
 
+    trial_ends = (datetime.utcnow() + timedelta(days=30)).isoformat()
+
+    # 親ユーザー作成（family_idは後で設定）
     db.execute("INSERT INTO users (name, username, password_hash, role) VALUES (?,?,?,'parent')",
                ('お父さん', 'parent', generate_password_hash('demo1234')))
-    db.execute("INSERT INTO users (name, username, password_hash, role, grade) VALUES (?,?,?,'child',4)",
-               ('たろう', 'taro', generate_password_hash('taro1234')))
-    db.execute("INSERT INTO users (name, username, password_hash, role, grade) VALUES (?,?,?,'child',2)",
-               ('はなこ', 'hanako', generate_password_hash('hanako1234')))
+    db.commit()
+    parent_id = db.execute("SELECT id FROM users WHERE username='parent'").fetchone()['id']
+
+    # ファミリー作成
+    db.execute(
+        "INSERT INTO families (name, owner_user_id, subscription_status, trial_ends_at) VALUES (?,?,?,?)",
+        ('デモ家族', parent_id, 'trial', trial_ends)
+    )
+    family_id = db.execute("SELECT last_insert_rowid() as id").fetchone()['id']
+
+    # 親のfamily_idを更新
+    db.execute("UPDATE users SET family_id=? WHERE id=?", (family_id, parent_id))
+
+    # 子ユーザー（family_id付き）
+    db.execute("INSERT INTO users (name, username, password_hash, role, grade, family_id) VALUES (?,?,?,'child',4,?)",
+               ('たろう', 'taro', generate_password_hash('taro1234'), family_id))
+    db.execute("INSERT INTO users (name, username, password_hash, role, grade, family_id) VALUES (?,?,?,'child',2,?)",
+               ('はなこ', 'hanako', generate_password_hash('hanako1234'), family_id))
     db.commit()
 
     taro_id   = db.execute("SELECT id FROM users WHERE username='taro'").fetchone()['id']
     hanako_id = db.execute("SELECT id FROM users WHERE username='hanako'").fetchone()['id']
-    parent_id = db.execute("SELECT id FROM users WHERE username='parent'").fetchone()['id']
 
     for k, v, l in [('base_pay',100,'基本給'),('grade_pay_multiplier',50,'学年給'),
                     ('eval_excellent',150,'成績◎'),('eval_good',20,'成績〇'),('eval_poor',0,'成績△')]:

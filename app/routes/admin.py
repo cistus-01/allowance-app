@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from ..database import get_db
+from ..utils import get_family_children, verify_child_ownership, subscription_required
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -21,7 +22,7 @@ def parent_required(f):
 @parent_required
 def index():
     db = get_db()
-    children = db.execute("SELECT * FROM users WHERE role='child' ORDER BY grade DESC").fetchall()
+    children = get_family_children(db)
     pay_rates = db.execute('SELECT * FROM pay_rates ORDER BY id').fetchall()
     chore_types = db.execute('SELECT * FROM chore_types ORDER BY sort_order').fetchall()
     subjects = db.execute('SELECT * FROM subjects ORDER BY sort_order').fetchall()
@@ -31,7 +32,6 @@ def index():
                            chore_types=chore_types,
                            subjects=subjects)
 
-# ユーザー管理
 @bp.route('/user/add', methods=['POST'])
 @login_required
 @parent_required
@@ -52,9 +52,9 @@ def add_user():
         return redirect(url_for('admin.index'))
 
     db.execute('''
-        INSERT INTO users (name, username, password_hash, role, grade)
-        VALUES (?, ?, ?, 'child', ?)
-    ''', (name, username, generate_password_hash(password), grade))
+        INSERT INTO users (name, username, password_hash, role, grade, family_id)
+        VALUES (?, ?, ?, 'child', ?, ?)
+    ''', (name, username, generate_password_hash(password), grade, current_user.family_id))
     db.commit()
     flash(f'{name} を追加しました。', 'success')
     return redirect(url_for('admin.index'))
@@ -64,10 +64,12 @@ def add_user():
 @parent_required
 def edit_user(user_id):
     db = get_db()
+    if not verify_child_ownership(db, user_id):
+        flash('権限がありません。', 'danger')
+        return redirect(url_for('admin.index'))
     name = request.form.get('name', '').strip()
     grade = request.form.get('grade', type=int)
     password = request.form.get('password', '').strip()
-
     if password:
         db.execute('UPDATE users SET name=?, grade=?, password_hash=? WHERE id=?',
                    (name, grade, generate_password_hash(password), user_id))
@@ -82,12 +84,14 @@ def edit_user(user_id):
 @parent_required
 def delete_user(user_id):
     db = get_db()
+    if not verify_child_ownership(db, user_id):
+        flash('権限がありません。', 'danger')
+        return redirect(url_for('admin.index'))
     db.execute('DELETE FROM users WHERE id=? AND role="child"', (user_id,))
     db.commit()
     flash('削除しました。', 'success')
     return redirect(url_for('admin.index'))
 
-# 単価設定
 @bp.route('/rates/update', methods=['POST'])
 @login_required
 @parent_required
@@ -101,7 +105,6 @@ def update_rates():
     flash('単価を更新しました。', 'success')
     return redirect(url_for('admin.index'))
 
-# 家事種類管理
 @bp.route('/chore/add', methods=['POST'])
 @login_required
 @parent_required
@@ -117,7 +120,6 @@ def add_chore():
         flash('家事を追加しました。', 'success')
     return redirect(url_for('admin.index'))
 
-# 教科管理
 @bp.route('/subject/add', methods=['POST'])
 @login_required
 @parent_required
@@ -128,7 +130,6 @@ def add_subject():
         max_order = db.execute('SELECT MAX(sort_order) as m FROM subjects').fetchone()['m'] or 0
         db.execute('INSERT INTO subjects (name, sort_order) VALUES (?, ?)', (name, max_order + 1))
         new_id = db.execute('SELECT last_insert_rowid() as id').fetchone()['id']
-        # 全学年に追加
         for grade in range(1, 7):
             db.execute('INSERT OR IGNORE INTO grade_subjects (grade, subject_id) VALUES (?, ?)',
                        (grade, new_id))
@@ -136,7 +137,6 @@ def add_subject():
         flash('教科を追加しました。', 'success')
     return redirect(url_for('admin.index'))
 
-# 単価表（全員閲覧）
 @bp.route('/rates')
 @login_required
 def rates():
@@ -145,7 +145,6 @@ def rates():
     chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
     return render_template('admin/rates.html', pay_rates=pay_rates, chore_types=chore_types)
 
-# 給料明細印刷（親専用）
 @bp.route('/payslip')
 @login_required
 @parent_required
@@ -156,8 +155,7 @@ def payslip():
     year  = request.args.get('year',  today.year,  type=int)
     month = request.args.get('month', today.month, type=int)
 
-
-    children    = db.execute("SELECT * FROM users WHERE role='child' ORDER BY grade DESC").fetchall()
+    children    = get_family_children(db)
     chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
     rates       = get_pay_rates()
 
@@ -165,8 +163,6 @@ def payslip():
     for child in children:
         grade_pay, academic_pay, _ = calc_academic_pay_for_month(child['id'], year, month)
         base_pay = rates.get('base_pay', 100)
-
-        # 家事別集計
         chore_detail = []
         chore_total  = 0
         month_str    = f'{year}-{month:02d}'
@@ -176,7 +172,6 @@ def payslip():
                 WHERE user_id=? AND chore_type_id=?
                   AND strftime('%Y-%m', record_date)=?
             ''', (child['id'], ct['id'], month_str)).fetchone()['c']
-            # 分割を考慮した実際の報酬
             pay = 0
             days = db.execute('''
                 SELECT record_date FROM chore_records
@@ -212,3 +207,19 @@ def payslip():
                            today=today,
                            prev_year=prev_year, prev_month=prev_month,
                            next_year=next_year, next_month=next_month)
+
+@bp.route('/summer_slip')
+@login_required
+@parent_required
+def summer_slip():
+    db = get_db()
+    children = get_family_children(db)
+    return render_template('admin/summer_slip.html', children=children)
+
+@bp.route('/bonus', methods=['GET', 'POST'])
+@login_required
+@parent_required
+def bonus():
+    db = get_db()
+    children = get_family_children(db)
+    return render_template('admin/bonus.html', children=children)

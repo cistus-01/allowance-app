@@ -2,14 +2,17 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from ..database import get_db
 from ..salary import calc_chore_pay
+from ..utils import get_family_children, verify_child_ownership
 from datetime import date
 import calendar
 
 bp = Blueprint('chores', __name__, url_prefix='/chores')
 
-def get_target_user_id():
+def get_target_user_id(db):
     if current_user.is_parent:
         child_id = request.args.get('child_id', type=int) or request.form.get('child_id', type=int)
+        if child_id and not verify_child_ownership(db, child_id):
+            return None
         return child_id
     return current_user.id
 
@@ -57,9 +60,9 @@ def index():
     year  = request.args.get('year',  today.year,  type=int)
     month = request.args.get('month', today.month, type=int)
 
-    target_id = get_target_user_id()
+    target_id = get_target_user_id(db)
     if target_id is None and current_user.is_parent:
-        children = db.execute("SELECT * FROM users WHERE role='child' ORDER BY grade DESC").fetchall()
+        children = get_family_children(db)
         if children:
             target_id = children[0]['id']
 
@@ -77,7 +80,7 @@ def index():
 
     children = None
     if current_user.is_parent:
-        children = db.execute("SELECT * FROM users WHERE role='child' ORDER BY grade DESC").fetchall()
+        children = get_family_children(db)
 
     prev_year,  prev_month  = (year, month - 1) if month > 1  else (year - 1, 12)
     next_year,  next_month  = (year, month + 1) if month < 12 else (year + 1,  1)

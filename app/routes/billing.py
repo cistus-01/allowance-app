@@ -60,7 +60,7 @@ def checkout():
 
     if not customer_id:
         customer = stripe.Customer.create(
-            metadata={'family_id': family['id'], 'username': current_user.username}
+            metadata={'family_id': family['id'] if family else '', 'username': current_user.username}
         )
         customer_id = customer.id
         db.execute('UPDATE families SET stripe_customer_id = ? WHERE owner_user_id = ?',

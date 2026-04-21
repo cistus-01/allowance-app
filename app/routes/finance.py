@@ -2,14 +2,18 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from ..database import get_db
 from ..salary import calc_balance, get_monthly_finance_summary
+from ..utils import get_family_children, verify_child_ownership
 from datetime import date
 import calendar
 
 bp = Blueprint('finance', __name__, url_prefix='/finance')
 
-def get_target_user_id():
+def get_target_user_id(db):
     if current_user.is_parent:
-        return request.args.get('child_id', type=int) or request.form.get('child_id', type=int)
+        child_id = request.args.get('child_id', type=int) or request.form.get('child_id', type=int)
+        if child_id and not verify_child_ownership(db, child_id):
+            return None
+        return child_id
     return current_user.id
 
 @bp.route('/')
@@ -20,9 +24,9 @@ def index():
     year = request.args.get('year', today.year, type=int)
     month = request.args.get('month', today.month, type=int)
 
-    target_id = get_target_user_id()
+    target_id = get_target_user_id(db)
     if target_id is None and current_user.is_parent:
-        children = db.execute("SELECT * FROM users WHERE role='child' ORDER BY grade DESC").fetchall()
+        children = get_family_children(db)
         if children:
             target_id = children[0]['id']
 
@@ -51,7 +55,7 @@ def index():
 
     children = None
     if current_user.is_parent:
-        children = db.execute("SELECT * FROM users WHERE role='child' ORDER BY grade DESC").fetchall()
+        children = get_family_children(db)
 
     prev_year, prev_month = (year, month - 1) if month > 1 else (year - 1, 12)
     next_year, next_month = (year, month + 1) if month < 12 else (year + 1, 1)
@@ -74,7 +78,7 @@ def index():
 def day_detail():
     db = get_db()
     record_date = request.args.get('date')
-    target_id = get_target_user_id()
+    target_id = get_target_user_id(db)
     if target_id is None:
         target_id = current_user.id
 
@@ -97,7 +101,11 @@ def day_detail():
 @login_required
 def add():
     db = get_db()
-    target_id = request.form.get('user_id', type=int) or current_user.id
+    raw_id = request.form.get('user_id', type=int)
+    if raw_id and current_user.is_parent and not verify_child_ownership(db, raw_id):
+        flash('権限がありません。', 'danger')
+        return redirect(url_for('finance.index'))
+    target_id = raw_id or current_user.id
     record_date = request.form.get('record_date')
     rec_type = request.form.get('type')
     category = request.form.get('category', '').strip()
@@ -124,6 +132,9 @@ def delete(record_id):
     db = get_db()
     record = db.execute('SELECT * FROM finance_records WHERE id=?', (record_id,)).fetchone()
     if record:
+        if current_user.is_parent and not verify_child_ownership(db, record['user_id']):
+            flash('権限がありません。', 'danger')
+            return redirect(url_for('finance.index'))
         if current_user.is_child and record['user_id'] != current_user.id:
             flash('権限がありません。', 'danger')
             return redirect(url_for('finance.index'))
