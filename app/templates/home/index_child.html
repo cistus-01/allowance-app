@@ -38,9 +38,34 @@
     <div class="progress" style="height:10px;">
       <div class="progress-bar bg-success" style="width:{{ pct }}%"></div>
     </div>
-    <div class="text-muted small mt-1">{{ pct }}% たまった（目標 ¥{{ '{:,}'.format(top_goal.target_amount) }}）</div>
+    <div class="d-flex justify-content-between mt-1">
+      <div class="text-muted small">{{ pct }}% たまった（目標 ¥{{ '{:,}'.format(top_goal.target_amount) }}）</div>
+      {% if days_to_goal and remaining > 0 %}
+      <div class="text-muted small">毎日頑張れば あと<strong>{{ days_to_goal }}日</strong>！</div>
+      {% endif %}
+    </div>
   </div>
 </a>
+{% endif %}
+
+{% if chore_types %}
+<div class="mb-3">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <div class="fw-bold">今日のお手伝い</div>
+    <a href="{{ url_for('chores.index') }}" class="text-muted small">もっと見る →</a>
+  </div>
+  <div class="d-flex flex-wrap gap-2" id="quick-chores">
+    {% for ct in chore_types %}
+    <button type="button"
+      class="btn btn-sm {% if today_checks[ct.id | string] %}btn-success{% else %}btn-outline-secondary{% endif %} quick-chore-btn"
+      data-chore-id="{{ ct.id }}"
+      data-date="{{ today.isoformat() }}"
+      data-user-id="{{ current_user.id }}">
+      {% if today_checks[ct.id | string] %}✓ {% endif %}{{ ct.name }}
+    </button>
+    {% endfor %}
+  </div>
+</div>
 {% endif %}
 
 <div class="row g-3">
@@ -89,4 +114,33 @@
     </a>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.quick-chore-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const choreId = btn.dataset.choreId;
+    const date    = btn.dataset.date;
+    const userId  = btn.dataset.userId;
+    btn.disabled = true;
+    try {
+      const res = await fetch('/chores/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chore_type_id: choreId, date: date, user_id: userId })
+      });
+      const data = await res.json();
+      if (data.checked) {
+        btn.classList.replace('btn-outline-secondary', 'btn-success');
+        btn.textContent = '✓ ' + btn.textContent.replace(/^✓\s*/, '');
+      } else {
+        btn.classList.replace('btn-success', 'btn-outline-secondary');
+        btn.textContent = btn.textContent.replace(/^✓\s*/, '');
+      }
+    } catch(e) { console.error(e); }
+    btn.disabled = false;
+  });
+});
+</script>
 {% endblock %}

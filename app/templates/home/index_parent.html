@@ -13,8 +13,12 @@
 <div class="d-flex flex-wrap gap-2 mb-3">
   {% for child in children %}
   <a href="{{ url_for('home.index', child_id=child.id) }}"
-     class="btn {% if child.id == selected_id %}btn-primary{% else %}btn-outline-primary{% endif %} fw-bold px-3">
+     class="btn {% if child.id == selected_id %}btn-primary{% else %}btn-outline-primary{% endif %} fw-bold px-3 position-relative">
     {{ child.name }}（{{ child.grade }}年）
+    {% set cnt = chore_counts_today.get(child.id, 0) %}
+    {% if cnt > 0 %}
+    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="font-size:.65rem;">{{ cnt }}</span>
+    {% endif %}
   </a>
   {% endfor %}
 </div>

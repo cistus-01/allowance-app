@@ -44,13 +44,25 @@ def index():
                 selected_child = User(row)
                 salary = calc_monthly_salary(selected_id, today.year, today.month)
                 balance = calc_balance(selected_id)
+
+        # 今日の全子供のお手伝いチェック数（ホーム一覧用）
+        today_str = today.isoformat()
+        chore_counts_today = {}
+        for child in (children or []):
+            cnt = db.execute(
+                'SELECT COUNT(*) as cnt FROM chore_records WHERE user_id=? AND record_date=?',
+                (child['id'], today_str)
+            ).fetchone()['cnt']
+            chore_counts_today[child['id']] = cnt
+
         return render_template('home/index_parent.html',
                                children=children,
                                selected_child=selected_child,
                                selected_id=selected_id,
                                salary=salary,
                                balance=balance,
-                               today=today)
+                               today=today,
+                               chore_counts_today=chore_counts_today)
     else:
         salary = calc_monthly_salary(current_user.id, today.year, today.month)
         balance = calc_balance(current_user.id)
@@ -58,8 +70,38 @@ def index():
             'SELECT * FROM goals WHERE user_id=? AND is_achieved=0 ORDER BY created_at ASC LIMIT 1',
             (current_user.id,)
         ).fetchone()
+
+        # 今日のお手伝いチェック状況
+        chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
+        today_str = today.isoformat()
+        today_checks = {}
+        for ct in chore_types:
+            row = db.execute(
+                'SELECT id FROM chore_records WHERE user_id=? AND chore_type_id=? AND record_date=?',
+                (current_user.id, ct['id'], today_str)
+            ).fetchone()
+            today_checks[str(ct['id'])] = row is not None
+
+        # 目標達成まであと何日？（全お手伝い毎日やった場合の最短日数）
+        days_to_goal = None
+        if top_goal:
+            remaining = top_goal['target_amount'] - balance
+            if remaining > 0:
+                daily_max = sum(ct['unit_price'] for ct in chore_types) if chore_types else 0
+                # 月次固定給（base_pay + grade_pay）を日割り
+                import calendar as cal_mod
+                days_in_month = cal_mod.monthrange(today.year, today.month)[1]
+                daily_fixed = (salary['base_pay'] + salary.get('grade_pay', 0) + salary.get('academic_pay', 0)) / days_in_month
+                daily_total = daily_max + daily_fixed
+                if daily_total > 0:
+                    import math
+                    days_to_goal = math.ceil(remaining / daily_total)
+
         return render_template('home/index_child.html',
                                salary=salary,
                                balance=balance,
                                today=today,
-                               top_goal=top_goal)
+                               top_goal=top_goal,
+                               chore_types=chore_types,
+                               today_checks=today_checks,
+                               days_to_goal=days_to_goal)
