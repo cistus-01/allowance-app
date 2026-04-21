@@ -5,7 +5,7 @@
   <div class="col-md-5 col-sm-8">
     <div class="card">
       <div class="card-header text-center py-3">
-        <i class="bi bi-coin fs-3 me-2"></i>給料計算アプリ
+        <i class="bi bi-coin fs-3 me-2"></i>おこづかい帳
       </div>
       <div class="card-body p-4">
         <h5 class="mb-3 text-center">ログイン</h5>
@@ -21,9 +21,12 @@
           <button type="submit" class="btn btn-primary w-100 btn-lg">ログイン</button>
         </form>
         <hr class="my-3">
-        <p class="text-center text-muted mb-0 small">
+        <p class="text-center text-muted mb-1 small">
           はじめての方は
           <a href="{{ url_for('register.index') }}">新規登録（30日無料）</a>
+        </p>
+        <p class="text-center text-muted mb-0 small">
+          <a href="{{ url_for('auth.forgot') }}">パスワードをお忘れの方</a>
         </p>
       </div>
     </div>

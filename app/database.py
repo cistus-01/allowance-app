@@ -37,6 +37,18 @@ def init_db():
         db.execute("ALTER TABLE users ADD COLUMN family_id INTEGER")
     if 'email' not in cols:
         db.execute("ALTER TABLE users ADD COLUMN email TEXT")
+
+    # パスワードリセットトークンテーブル
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token TEXT NOT NULL UNIQUE,
+            expires_at DATETIME NOT NULL,
+            used_at DATETIME,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
     db.commit()
 
     db.close()
