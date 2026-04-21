@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from ..database import get_db
 from werkzeug.security import generate_password_hash
 from datetime import date, timedelta, datetime
@@ -84,3 +84,22 @@ def run():
     db.commit()
 
     return jsonify({'status': 'ok', 'message': 'デモデータ投入完了'})
+
+@bp.route('/patch-families')
+def patch_families():
+    """family_idのないユーザーにfamilyを作成するパッチ"""
+    db = get_db()
+    parents = db.execute("SELECT * FROM users WHERE role='parent'").fetchall()
+    patched = 0
+    for parent in parents:
+        if parent['family_id']:
+            continue
+        trial_ends = (datetime.utcnow() + timedelta(days=30)).isoformat()
+        db.execute('INSERT INTO families (name, owner_user_id, subscription_status, trial_ends_at) VALUES (?,?,?,?)',
+                   ('家族', parent['id'], 'trial', trial_ends))
+        family_id = db.execute('SELECT last_insert_rowid() as id').fetchone()['id']
+        db.execute('UPDATE users SET family_id=? WHERE id=?', (family_id, parent['id']))
+        db.execute("UPDATE users SET family_id=? WHERE role='child' AND (family_id IS NULL)", (family_id,))
+        db.commit()
+        patched += 1
+    return jsonify({'status': 'ok', 'patched': patched})
