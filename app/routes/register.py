@@ -61,6 +61,6 @@ def index():
         login_user(User(row))
 
         flash(f'ご登録ありがとうございます！30日間の無料トライアルが始まりました。', 'success')
-        return redirect(url_for('home.index'))
+        return redirect(url_for('onboarding.index'))
 
     return render_template('register/index.html')

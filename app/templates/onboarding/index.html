@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block title %}初期設定{% endblock %}
+{% block content %}
+
+{# ステップバー #}
+{% set current_step = step | int %}
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-0 mb-1">
+    {% for i, label in [(1,'子供を登録'), (2,'お手伝い設定'), (3,'報酬を確認')] %}
+    <div class="flex-1 text-center" style="flex:1;">
+      <div class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold mb-1"
+           style="width:32px;height:32px;background:{% if current_step >= i %}var(--primary){% else %}#ddd{% endif %};color:#fff;font-size:.85rem;">
+        {{ i }}
+      </div>
+      <div class="small {% if current_step >= i %}text-dark fw-bold{% else %}text-muted{% endif %}">{{ label }}</div>
+    </div>
+    {% if not loop.last %}
+    <div style="flex:0.5;height:2px;background:{% if current_step > i %}var(--primary){% else %}#ddd{% endif %};margin-bottom:1.5rem;"></div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+{# ============ STEP 1: 子供登録 ============ #}
+{% if current_step == 1 %}
+<h4 class="fw-bold mb-1">お子さんを登録しましょう</h4>
+<p class="text-muted small mb-3">複数いる場合は一人ずつ追加できます。後から追加・変更もできます。</p>
+
+{% if children %}
+<div class="mb-3">
+  {% for child in children %}
+  <div class="d-flex align-items-center gap-2 bg-white rounded-3 p-3 mb-2 shadow-sm">
+    <i class="bi bi-person-circle fs-4 text-success"></i>
+    <div>
+      <div class="fw-bold">{{ child.name }}</div>
+      <div class="text-muted small">{{ child.grade }}年生 / @{{ child.username }}</div>
+    </div>
+    <span class="badge bg-success ms-auto">登録済み</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('onboarding.add_child') }}" class="bg-white rounded-3 p-4 shadow-sm mb-3">
+  <input type="hidden" name="next_step" value="1">
+  <div class="mb-3">
+    <label class="form-label fw-bold">名前（表示用）</label>
+    <input type="text" name="name" class="form-control" placeholder="例: たろう" required>
+  </div>
+  <div class="row g-2 mb-3">
+    <div class="col-7">
+      <label class="form-label fw-bold">ユーザー名（ログイン用）</label>
+      <input type="text" name="username" class="form-control" placeholder="例: taro" required>
+    </div>
+    <div class="col-5">
+      <label class="form-label fw-bold">学年</label>
+      <select name="grade" class="form-select">
+        {% for g in range(1, 7) %}<option value="{{ g }}">{{ g }}年生</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="mb-3">
+    <label class="form-label fw-bold">パスワード</label>
+    <input type="text" name="password" class="form-control" placeholder="子供が覚えやすいもの" required>
+    <div class="form-text">子供がログインする時に使います</div>
+  </div>
+  <button type="submit" class="btn btn-outline-success w-100">
+    <i class="bi bi-plus-circle me-1"></i>子供を追加
+  </button>
+</form>
+
+{% if children %}
+<a href="{{ url_for('onboarding.index', step=2) }}" class="btn btn-primary w-100 py-3 fw-bold">
+  次へ：お手伝いを設定する →
+</a>
+{% else %}
+<p class="text-center text-muted small mt-2">まず1人登録すると次に進めます</p>
+{% endif %}
+
+
+{# ============ STEP 2: お手伝い設定 ============ #}
+{% elif current_step == 2 %}
+<h4 class="fw-bold mb-1">お手伝いの種類と報酬を設定</h4>
+<p class="text-muted small mb-3">よくある設定を参考にどうぞ。後から変更できます。</p>
+
+{% if chore_types %}
+<div class="mb-3">
+  {% for ct in chore_types %}
+  <div class="d-flex align-items-center gap-2 bg-white rounded-3 px-3 py-2 mb-1 shadow-sm">
+    <i class="bi bi-check2-square text-success"></i>
+    <div class="flex-1">{{ ct.name }}</div>
+    <div class="fw-bold text-success">¥{{ ct.unit_price }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# よくある設定プリセット #}
+{% if not chore_types %}
+<div class="mb-3">
+  <p class="small text-muted mb-2">💡 よく使われる設定をまとめて追加:</p>
+  <div class="d-flex flex-wrap gap-2">
+    {% for name, price in [('お皿洗い',50),('掃除機がけ',80),('洗濯物たたみ',30),('ゴミ出し',60),('風呂掃除',70)] %}
+    <form method="POST" action="{{ url_for('onboarding.add_chore') }}" class="d-inline">
+      <input type="hidden" name="name" value="{{ name }}">
+      <input type="hidden" name="price" value="{{ price }}">
+      <button type="submit" class="btn btn-outline-secondary btn-sm">+ {{ name }}（¥{{ price }}）</button>
+    </form>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('onboarding.add_chore') }}" class="bg-white rounded-3 p-4 shadow-sm mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-7">
+      <label class="form-label fw-bold small">お手伝いの名前</label>
+      <input type="text" name="name" class="form-control" placeholder="例: お皿洗い">
+    </div>
+    <div class="col-3">
+      <label class="form-label fw-bold small">報酬（円）</label>
+      <input type="number" name="price" class="form-control" placeholder="50" min="0">
+    </div>
+    <div class="col-2">
+      <button type="submit" class="btn btn-outline-success w-100">追加</button>
+    </div>
+  </div>
+</form>
+
+<div class="d-flex gap-2">
+  <a href="{{ url_for('onboarding.index', step=1) }}" class="btn btn-outline-secondary flex-1">← 戻る</a>
+  <a href="{{ url_for('onboarding.index', step=3) }}" class="btn btn-primary flex-1 py-3 fw-bold">
+    次へ：報酬を確認する →
+  </a>
+</div>
+
+
+{# ============ STEP 3: 報酬確認 ============ #}
+{% elif current_step == 3 %}
+<h4 class="fw-bold mb-1">毎月の基本報酬を確認</h4>
+<p class="text-muted small mb-3">お手伝いとは別に、毎月固定でもらえる報酬です。</p>
+
+<form method="POST" action="{{ url_for('onboarding.set_rates') }}" class="bg-white rounded-3 p-4 shadow-sm mb-3">
+  <div class="mb-3">
+    <label class="form-label fw-bold">基本給（毎月固定）</label>
+    <div class="input-group">
+      <span class="input-group-text">¥</span>
+      <input type="number" name="base_pay" class="form-control"
+             value="{{ pay_rates.get('base_pay', 100) }}" min="0" step="50">
+      <span class="input-group-text">/月</span>
+    </div>
+    <div class="form-text">学年に関係なく全員が毎月もらえる金額</div>
+  </div>
+  <div class="mb-3">
+    <label class="form-label fw-bold">学年給（学年 × この金額）</label>
+    <div class="input-group">
+      <span class="input-group-text">¥</span>
+      <input type="number" name="grade_pay_multiplier" class="form-control"
+             value="{{ pay_rates.get('grade_pay_multiplier', 50) }}" min="0" step="10">
+      <span class="input-group-text">× 学年/月</span>
+    </div>
+    <div class="form-text">例: ¥50×4年生 = ¥200/月</div>
+  </div>
+  <hr>
+  <p class="small fw-bold text-muted">成績ボーナス（◎・〇の評価ごと）</p>
+  <div class="row g-2 mb-3">
+    <div class="col-6">
+      <label class="form-label small">◎ ひとつにつき</label>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text">¥</span>
+        <input type="number" name="eval_excellent" class="form-control"
+               value="{{ pay_rates.get('eval_excellent', 150) }}" min="0">
+      </div>
+    </div>
+    <div class="col-6">
+      <label class="form-label small">〇 ひとつにつき</label>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text">¥</span>
+        <input type="number" name="eval_good" class="form-control"
+               value="{{ pay_rates.get('eval_good', 20) }}" min="0">
+      </div>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-success w-100">この設定で保存</button>
+</form>
+
+<div class="d-flex gap-2">
+  <a href="{{ url_for('onboarding.index', step=2) }}" class="btn btn-outline-secondary flex-1">← 戻る</a>
+  <a href="{{ url_for('onboarding.finish') }}" class="btn btn-primary flex-1 py-3 fw-bold">
+    🎉 設定完了！はじめる
+  </a>
+</div>
+
+{% endif %}
+{% endblock %}
