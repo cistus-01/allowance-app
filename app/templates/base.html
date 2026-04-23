@@ -4,17 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}おこづかい帳{% endblock %}</title>
-  <meta name="description" content="{% block meta_description %}子供のおこづかい管理・お手伝い報酬・成績ボーナスをまとめて管理。家族みんなで使えるおこづかい帳アプリ。月額480円。{% endblock %}">
-  <meta name="keywords" content="おこづかい帳,子供,お小遣い管理,お手伝い,家族,お金教育,小学生">
+  <meta name="description" content="{% block meta_description %}子供のおこづかい管理・家事報酬・成績ボーナスをまとめて管理。家族みんなで使えるおこづかい帳アプリ。月額480円。{% endblock %}">
+  <meta name="keywords" content="おこづかい帳,子供,お小遣い管理,家事,家族,お金教育,小学生">
   <meta property="og:type" content="website">
   <meta property="og:title" content="{% block og_title %}おこづかい帳 | 家族で使えるお小遣い管理アプリ{% endblock %}">
-  <meta property="og:description" content="{% block og_description %}お手伝い報酬・成績ボーナス・目標貯金を一括管理。子供のお金教育を楽しくサポート。月額480円（ファミリープラン）。{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}家事報酬・成績ボーナス・目標貯金を一括管理。子供のお金教育を楽しくサポート。月額480円（ファミリープラン）。{% endblock %}">
   <meta property="og:url" content="https://allowance-app-98k3.onrender.com/">
   <meta property="og:site_name" content="おこづかい帳">
   <meta property="og:locale" content="ja_JP">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="おこづかい帳 | 家族で使えるお小遣い管理アプリ">
-  <meta name="twitter:description" content="お手伝い報酬・成績ボーナス・目標貯金を一括管理。月額480円。">
+  <meta name="twitter:description" content="家事報酬・成績ボーナス・目標貯金を一括管理。月額480円。">
   <link rel="canonical" href="https://allowance-app-98k3.onrender.com{% block canonical_path %}/{% endblock %}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
@@ -123,7 +123,7 @@
     <i class="bi bi-house-fill"></i>ホーム
   </a>
   <a href="{{ url_for('chores.index') }}" class="{% if '/chores' in path %}active{% endif %}">
-    <i class="bi bi-check2-square"></i>お手伝い
+    <i class="bi bi-check2-square"></i>家事
   </a>
   <a href="{{ url_for('goals.index') }}" class="{% if '/goals' in path %}active{% endif %}">
     <i class="bi bi-star-fill"></i>ほしいもの
@@ -141,7 +141,7 @@
     <i class="bi bi-house-fill"></i>ホーム
   </a>
   <a href="{{ url_for('chores.index') }}" class="{% if '/chores' in path %}active{% endif %}">
-    <i class="bi bi-check2-square"></i>お手伝い
+    <i class="bi bi-check2-square"></i>家事
   </a>
   <a href="{{ url_for('goals.index') }}" class="{% if '/goals' in path %}active{% endif %}">
     <i class="bi bi-star-fill"></i>ほしいもの

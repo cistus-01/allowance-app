@@ -6,7 +6,7 @@
 {% set current_step = step | int %}
 <div class="mb-4">
   <div class="d-flex align-items-center gap-0 mb-1">
-    {% for i, label in [(1,'子供を登録'), (2,'お手伝い設定'), (3,'報酬を確認')] %}
+    {% for i, label in [(1,'子供を登録'), (2,'家事設定'), (3,'報酬を確認')] %}
     <div class="flex-1 text-center" style="flex:1;">
       <div class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold mb-1"
            style="width:32px;height:32px;background:{% if current_step >= i %}var(--primary){% else %}#ddd{% endif %};color:#fff;font-size:.85rem;">
@@ -71,16 +71,16 @@
 
 {% if children %}
 <a href="{{ url_for('onboarding.index', step=2) }}" class="btn btn-primary w-100 py-3 fw-bold">
-  次へ：お手伝いを設定する →
+  次へ：家事を設定する →
 </a>
 {% else %}
 <p class="text-center text-muted small mt-2">まず1人登録すると次に進めます</p>
 {% endif %}
 
 
-{# ============ STEP 2: お手伝い設定 ============ #}
+{# ============ STEP 2: 家事設定 ============ #}
 {% elif current_step == 2 %}
-<h4 class="fw-bold mb-1">お手伝いの種類と報酬を設定</h4>
+<h4 class="fw-bold mb-1">家事の種類と報酬を設定</h4>
 <p class="text-muted small mb-3">よくある設定を参考にどうぞ。後から変更できます。</p>
 
 {% if chore_types %}
@@ -114,7 +114,7 @@
 <form method="POST" action="{{ url_for('onboarding.add_chore') }}" class="bg-white rounded-3 p-4 shadow-sm mb-3">
   <div class="row g-2 align-items-end">
     <div class="col-7">
-      <label class="form-label fw-bold small">お手伝いの名前</label>
+      <label class="form-label fw-bold small">家事の名前</label>
       <input type="text" name="name" class="form-control" placeholder="例: お皿洗い">
     </div>
     <div class="col-3">
@@ -138,7 +138,7 @@
 {# ============ STEP 3: 報酬確認 ============ #}
 {% elif current_step == 3 %}
 <h4 class="fw-bold mb-1">毎月の基本報酬を確認</h4>
-<p class="text-muted small mb-3">お手伝いとは別に、毎月固定でもらえる報酬です。</p>
+<p class="text-muted small mb-3">家事とは別に、毎月固定でもらえる報酬です。</p>
 
 <form method="POST" action="{{ url_for('onboarding.set_rates') }}" class="bg-white rounded-3 p-4 shadow-sm mb-3">
   <div class="mb-3">

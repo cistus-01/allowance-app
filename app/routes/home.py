@@ -45,7 +45,7 @@ def index():
                 salary = calc_monthly_salary(selected_id, today.year, today.month)
                 balance = calc_balance(selected_id)
 
-        # 今日の全子供のお手伝いチェック数（ホーム一覧用）
+        # 今日の全子供の家事チェック数（ホーム一覧用）
         today_str = today.isoformat()
         chore_counts_today = {}
         for child in (children or []):
@@ -71,7 +71,7 @@ def index():
             (current_user.id,)
         ).fetchone()
 
-        # 今日のお手伝いチェック状況
+        # 今日の家事チェック状況
         chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
         today_str = today.isoformat()
         today_checks = {}
@@ -82,7 +82,7 @@ def index():
             ).fetchone()
             today_checks[str(ct['id'])] = row is not None
 
-        # 目標達成まであと何日？（全お手伝い毎日やった場合の最短日数）
+        # 目標達成まであと何日？（全家事毎日やった場合の最短日数）
         days_to_goal = None
         if top_goal:
             remaining = top_goal['target_amount'] - balance
