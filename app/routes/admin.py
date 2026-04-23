@@ -332,10 +332,46 @@ def summer_slip():
     children = get_family_children(db)
     return render_template('admin/summer_slip.html', children=children)
 
-@bp.route('/bonus', methods=['GET', 'POST'])
+@bp.route('/bonus', methods=['GET'])
 @login_required
 @parent_required
 def bonus():
+    from datetime import date
     db = get_db()
     children = get_family_children(db)
-    return render_template('admin/bonus.html', children=children)
+    child_ids = [c['id'] for c in children]
+    bonus_records = []
+    if child_ids:
+        placeholders = ','.join('?' * len(child_ids))
+        rows = db.execute(f'''
+            SELECT f.record_date, f.amount, f.note, u.name as child_name
+            FROM finance_records f
+            JOIN users u ON f.user_id = u.id
+            WHERE f.user_id IN ({placeholders}) AND f.category = 'bonus'
+            ORDER BY f.record_date DESC LIMIT 50
+        ''', child_ids).fetchall()
+        bonus_records = rows
+    return render_template('admin/bonus.html', children=children,
+                           bonus_records=bonus_records, today=date.today())
+
+@bp.route('/bonus/give', methods=['POST'])
+@login_required
+@parent_required
+def give_bonus():
+    from datetime import date
+    db = get_db()
+    user_id = request.form.get('user_id', type=int)
+    amount = request.form.get('amount', type=int)
+    record_date = request.form.get('record_date') or str(date.today())
+    note = request.form.get('note', '').strip()
+    if not verify_child_ownership(db, user_id):
+        flash('権限がありません。', 'danger')
+        return redirect(url_for('admin.bonus'))
+    if user_id and amount and amount > 0:
+        db.execute('''
+            INSERT INTO finance_records (user_id, record_date, type, category, amount, note, created_by)
+            VALUES (?, ?, 'income', 'bonus', ?, ?, ?)
+        ''', (user_id, record_date, amount, note or 'ボーナス', current_user.id))
+        db.commit()
+        flash('ボーナスを渡しました。', 'success')
+    return redirect(url_for('admin.bonus'))

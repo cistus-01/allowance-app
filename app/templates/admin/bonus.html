@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}ボーナス{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('home.index') }}" class="btn btn-outline-secondary btn-sm me-3">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h3 class="mb-0"><i class="bi bi-gift me-2 text-danger"></i>ボーナス</h3>
+</div>
+
+{# ボーナスを渡す #}
+<div class="card mb-4">
+  <div class="card-header">ボーナスを渡す</div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('admin.give_bonus') }}">
+      <div class="row g-3">
+        <div class="col-sm-4">
+          <label class="form-label small fw-bold">対象の子供</label>
+          <select name="user_id" class="form-select" required>
+            {% for child in children %}
+            <option value="{{ child.id }}">{{ child.name }}（{{ child.grade }}年）</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label small fw-bold">金額</label>
+          <div class="input-group">
+            <span class="input-group-text">¥</span>
+            <input type="number" name="amount" class="form-control" min="1" placeholder="例: 500" required>
+          </div>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label small fw-bold">日付</label>
+          <input type="date" name="record_date" class="form-control" value="{{ today }}" required>
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label small fw-bold">理由・メモ</label>
+          <input type="text" name="note" class="form-control" placeholder="例: 夏休みボーナス、お手伝い頑張ったで賞">
+        </div>
+        <div class="col-sm-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-danger w-100">渡す</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ボーナス履歴 #}
+<div class="card">
+  <div class="card-header">ボーナス履歴</div>
+  <div class="card-body">
+    {% if bonus_records %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr><th>日付</th><th>対象</th><th>金額</th><th>メモ</th></tr>
+        </thead>
+        <tbody>
+          {% for rec in bonus_records %}
+          <tr>
+            <td class="text-muted small">{{ rec.record_date }}</td>
+            <td class="fw-bold">{{ rec.child_name }}</td>
+            <td class="text-danger fw-bold">¥{{ '{:,}'.format(rec.amount) }}</td>
+            <td class="text-muted small">{{ rec.note or '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">まだボーナスはありません。</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -62,6 +62,22 @@
     </a>
   </div>
   <div class="col-6">
+    <a href="{{ url_for('admin.payslip') }}" class="text-decoration-none">
+      <div class="card h-100 text-center p-3" style="cursor:pointer;">
+        <i class="bi bi-printer fs-1 text-secondary mb-2"></i>
+        <div class="fw-bold">給料明細</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6">
+    <a href="{{ url_for('admin.bonus') }}" class="text-decoration-none">
+      <div class="card h-100 text-center p-3" style="cursor:pointer; background:#fff0f6;">
+        <i class="bi bi-gift fs-1 text-danger mb-2"></i>
+        <div class="fw-bold">ボーナス</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6">
     <a href="{{ url_for('finance.index', child_id=selected_id) }}" class="text-decoration-none">
       <div class="card h-100 text-center p-3" style="cursor:pointer;">
         <i class="bi bi-wallet2 fs-1 text-primary mb-2"></i>
@@ -90,16 +106,6 @@
       <div class="card h-100 text-center p-3" style="cursor:pointer;">
         <i class="bi bi-table fs-1 text-secondary mb-2"></i>
         <div class="fw-bold">単価表</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-12">
-    <a href="{{ url_for('admin.payslip') }}" class="text-decoration-none">
-      <div class="card text-center p-3" style="cursor:pointer;">
-        <div>
-          <i class="bi bi-printer fs-3 text-secondary me-2"></i>
-          <span class="fw-bold">給料明細を印刷</span>
-        </div>
       </div>
     </a>
   </div>
