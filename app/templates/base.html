@@ -45,12 +45,19 @@
     .eval-〇 { background: #4caf50; border-color: #4caf50; color: #fff; }
     .eval-△ { background: #e0e0e0; border-color: #e0e0e0; color: #333; }
     .summary-box { background: #fff; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
-    @media (max-width: 600px) {
+    /* ボトムナビ */
+    .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e0e0e0; z-index: 1000; height: 60px; }
+    .bottom-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: .65rem; color: #888; text-decoration: none; padding: 6px 0; }
+    .bottom-nav a.active { color: var(--primary); }
+    .bottom-nav a i { font-size: 1.3rem; }
+    @media (max-width: 768px) {
       .calendar-cell { height: 60px; font-size: .75rem; }
       .amount { font-size: 1.1rem; }
       .card.h-100.text-center.p-3 { min-height: 80px; }
       .btn { min-height: 44px; }
       input, select, textarea { font-size: 16px !important; } /* iOSズーム防止 */
+      .bottom-nav { display: flex; }
+      .container.py-4 { padding-bottom: 76px !important; }
     }
   </style>
   {% block head %}{% endblock %}
@@ -107,5 +114,46 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 {% block scripts %}{% endblock %}
+
+{% if current_user.is_authenticated %}
+{% set path = request.path %}
+{% if current_user.is_parent %}
+<nav class="bottom-nav">
+  <a href="{{ url_for('home.index') }}" class="{% if path == '/' %}active{% endif %}">
+    <i class="bi bi-house-fill"></i>ホーム
+  </a>
+  <a href="{{ url_for('chores.index') }}" class="{% if '/chores' in path %}active{% endif %}">
+    <i class="bi bi-check2-square"></i>お手伝い
+  </a>
+  <a href="{{ url_for('goals.index') }}" class="{% if '/goals' in path %}active{% endif %}">
+    <i class="bi bi-star-fill"></i>ほしいもの
+  </a>
+  <a href="{{ url_for('admin.payslip') }}" class="{% if '/admin/payslip' in path %}active{% endif %}">
+    <i class="bi bi-printer"></i>給与明細
+  </a>
+  <a href="{{ url_for('admin.index') }}" class="{% if path == '/admin/' or path == '/admin' %}active{% endif %}">
+    <i class="bi bi-gear"></i>設定
+  </a>
+</nav>
+{% else %}
+<nav class="bottom-nav">
+  <a href="{{ url_for('home.index') }}" class="{% if path == '/' %}active{% endif %}">
+    <i class="bi bi-house-fill"></i>ホーム
+  </a>
+  <a href="{{ url_for('chores.index') }}" class="{% if '/chores' in path %}active{% endif %}">
+    <i class="bi bi-check2-square"></i>お手伝い
+  </a>
+  <a href="{{ url_for('goals.index') }}" class="{% if '/goals' in path %}active{% endif %}">
+    <i class="bi bi-star-fill"></i>ほしいもの
+  </a>
+  <a href="{{ url_for('finance.index') }}" class="{% if '/finance' in path %}active{% endif %}">
+    <i class="bi bi-wallet2"></i>収支
+  </a>
+  <a href="{{ url_for('grades.index') }}" class="{% if '/grades' in path %}active{% endif %}">
+    <i class="bi bi-award"></i>成績
+  </a>
+</nav>
+{% endif %}
+{% endif %}
 </body>
 </html>
