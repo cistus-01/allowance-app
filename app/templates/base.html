@@ -32,11 +32,12 @@
     .card { border-radius: 12px; border: none; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
     .card-header { background: var(--primary); color: #fff; border-radius: 12px 12px 0 0 !important; font-weight: bold; }
     .amount { font-size: 1.4rem; font-weight: bold; color: var(--primary); }
-    .calendar-cell { min-height: 70px; cursor: pointer; vertical-align: top; font-size: .85rem; }
+    .calendar-cell { height: 70px; overflow: hidden; cursor: pointer; vertical-align: top; font-size: .85rem; }
     .calendar-cell:hover { background: #e8f5e9; }
     .calendar-cell.today { background: #fff8e1; border: 2px solid var(--accent) !important; }
     .calendar-cell.other-month { color: #ccc; }
-    .chore-badge { display: inline-block; width: 22px; height: 22px; border-radius: 50%; font-size: .7rem; line-height: 22px; text-align: center; margin: 1px; }
+    .chore-icons { overflow: hidden; max-height: 44px; }
+    .chore-badge { display: inline-block; width: 20px; height: 20px; border-radius: 50%; font-size: .65rem; line-height: 20px; text-align: center; margin: 1px; }
     .chore-done { background: var(--primary); color: #fff; }
     .chore-shared { background: #ff9800; color: #fff; }
     .eval-btn { width: 44px; height: 44px; font-size: 1.1rem; border-radius: 50%; }
@@ -45,7 +46,7 @@
     .eval-△ { background: #e0e0e0; border-color: #e0e0e0; color: #333; }
     .summary-box { background: #fff; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
     @media (max-width: 600px) {
-      .calendar-cell { min-height: 50px; font-size: .75rem; }
+      .calendar-cell { height: 60px; font-size: .75rem; }
       .amount { font-size: 1.1rem; }
       .card.h-100.text-center.p-3 { min-height: 80px; }
       .btn { min-height: 44px; }

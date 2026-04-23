@@ -137,6 +137,95 @@ def add_subject():
         flash('教科を追加しました。', 'success')
     return redirect(url_for('admin.index'))
 
+@bp.route('/chore/<int:chore_id>/edit', methods=['POST'])
+@login_required
+@parent_required
+def edit_chore(chore_id):
+    db = get_db()
+    name = request.form.get('name', '').strip()
+    unit_price = request.form.get('unit_price', type=int)
+    if name and unit_price is not None:
+        db.execute('UPDATE chore_types SET name=?, unit_price=? WHERE id=?', (name, unit_price, chore_id))
+        db.commit()
+        flash('家事を更新しました。', 'success')
+    return redirect(url_for('admin.index'))
+
+@bp.route('/chore/<int:chore_id>/delete', methods=['POST'])
+@login_required
+@parent_required
+def delete_chore(chore_id):
+    db = get_db()
+    db.execute('UPDATE chore_types SET is_active=0 WHERE id=?', (chore_id,))
+    db.commit()
+    flash('家事を削除しました。', 'success')
+    return redirect(url_for('admin.index'))
+
+@bp.route('/chore/<int:chore_id>/move', methods=['POST'])
+@login_required
+@parent_required
+def move_chore(chore_id):
+    db = get_db()
+    direction = request.form.get('direction')
+    current = db.execute('SELECT sort_order FROM chore_types WHERE id=?', (chore_id,)).fetchone()
+    if not current:
+        return redirect(url_for('admin.index'))
+    cur_order = current['sort_order']
+    if direction == 'up':
+        swap = db.execute('SELECT id, sort_order FROM chore_types WHERE is_active=1 AND sort_order < ? ORDER BY sort_order DESC LIMIT 1', (cur_order,)).fetchone()
+    else:
+        swap = db.execute('SELECT id, sort_order FROM chore_types WHERE is_active=1 AND sort_order > ? ORDER BY sort_order ASC LIMIT 1', (cur_order,)).fetchone()
+    if swap:
+        db.execute('UPDATE chore_types SET sort_order=? WHERE id=?', (swap['sort_order'], chore_id))
+        db.execute('UPDATE chore_types SET sort_order=? WHERE id=?', (cur_order, swap['id']))
+        db.commit()
+    return redirect(url_for('admin.index'))
+
+@bp.route('/subject/<int:subject_id>/delete', methods=['POST'])
+@login_required
+@parent_required
+def delete_subject(subject_id):
+    db = get_db()
+    db.execute('DELETE FROM subjects WHERE id=?', (subject_id,))
+    db.commit()
+    flash('教科を削除しました。', 'success')
+    return redirect(url_for('admin.index'))
+
+@bp.route('/subject/<int:subject_id>/move', methods=['POST'])
+@login_required
+@parent_required
+def move_subject(subject_id):
+    db = get_db()
+    direction = request.form.get('direction')
+    current = db.execute('SELECT sort_order FROM subjects WHERE id=?', (subject_id,)).fetchone()
+    if not current:
+        return redirect(url_for('admin.index'))
+    cur_order = current['sort_order']
+    if direction == 'up':
+        swap = db.execute('SELECT id, sort_order FROM subjects WHERE sort_order < ? ORDER BY sort_order DESC LIMIT 1', (cur_order,)).fetchone()
+    else:
+        swap = db.execute('SELECT id, sort_order FROM subjects WHERE sort_order > ? ORDER BY sort_order ASC LIMIT 1', (cur_order,)).fetchone()
+    if swap:
+        db.execute('UPDATE subjects SET sort_order=? WHERE id=?', (swap['sort_order'], subject_id))
+        db.execute('UPDATE subjects SET sort_order=? WHERE id=?', (cur_order, swap['id']))
+        db.commit()
+    return redirect(url_for('admin.index'))
+
+@bp.route('/profile/edit', methods=['POST'])
+@login_required
+@parent_required
+def edit_profile():
+    from werkzeug.security import generate_password_hash
+    db = get_db()
+    name = request.form.get('name', '').strip()
+    password = request.form.get('password', '').strip()
+    if name:
+        db.execute('UPDATE users SET name=? WHERE id=?', (name, current_user.id))
+    if password:
+        db.execute('UPDATE users SET password_hash=? WHERE id=?', (generate_password_hash(password), current_user.id))
+    db.commit()
+    flash('プロフィールを更新しました。', 'success')
+    return redirect(url_for('admin.index'))
+
 @bp.route('/rates')
 @login_required
 def rates():

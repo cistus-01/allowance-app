@@ -78,7 +78,7 @@
             <div class="chore-icons" id="icons-{{ date_str }}">
               {% if date_str in record_map %}
                 {% for ct in chore_types %}
-                  {% if ct.id|string in record_map[date_str] %}
+                  {% if ct.id|string in record_map[date_str] and record_map[date_str][ct.id|string].checked %}
                     {% set info = record_map[date_str][ct.id|string] %}
                     <span class="chore-badge {% if info.count > 1 %}chore-shared{% else %}chore-done{% endif %}"
                           title="{{ ct.name }}{% if info.count > 1 %}（{{ info.count }}人）{% endif %}">
