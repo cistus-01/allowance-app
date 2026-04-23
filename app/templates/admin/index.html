@@ -112,39 +112,21 @@
 <div class="card mb-4">
   <div class="card-header">家事の種類</div>
   <div class="card-body">
-    <div class="table-responsive mb-3">
-      <table class="table table-sm align-middle">
-        <thead><tr><th>順</th><th>名前</th><th>単価</th><th>編集</th><th>削除</th></tr></thead>
-        <tbody>
-          {% for ct in chore_types %}
-          <tr>
-            <td>
-              <form method="post" action="{{ url_for('admin.move_chore', chore_id=ct.id) }}" class="d-inline">
-                <input type="hidden" name="direction" value="up">
-                <button class="btn btn-sm btn-outline-secondary py-0 px-1" {% if loop.first %}disabled{% endif %}>▲</button>
-              </form>
-              <form method="post" action="{{ url_for('admin.move_chore', chore_id=ct.id) }}" class="d-inline">
-                <input type="hidden" name="direction" value="down">
-                <button class="btn btn-sm btn-outline-secondary py-0 px-1" {% if loop.last %}disabled{% endif %}>▼</button>
-              </form>
-            </td>
-            <td>{{ ct.name }}</td>
-            <td>¥{{ ct.unit_price }}/日</td>
-            <td>
-              <button class="btn btn-sm btn-outline-primary"
-                      onclick="openChoreEditModal({{ ct.id }}, '{{ ct.name }}', {{ ct.unit_price }})">編集</button>
-            </td>
-            <td>
-              <form method="post" action="{{ url_for('admin.delete_chore', chore_id=ct.id) }}"
-                    onsubmit="return confirm('「{{ ct.name }}」を削除しますか？')">
-                <button class="btn btn-sm btn-outline-danger">削除</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <ul class="list-group mb-3" id="chore-sortable">
+      {% for ct in chore_types %}
+      <li class="list-group-item d-flex align-items-center gap-2" data-id="{{ ct.id }}">
+        <span class="drag-handle text-muted" style="cursor:grab;">&#9776;</span>
+        <span class="flex-grow-1 fw-bold">{{ ct.name }}</span>
+        <span class="text-muted small">¥{{ ct.unit_price }}/日</span>
+        <button class="btn btn-sm btn-outline-primary"
+                onclick="openChoreEditModal({{ ct.id }}, '{{ ct.name }}', {{ ct.unit_price }})">編集</button>
+        <form method="post" action="{{ url_for('admin.delete_chore', chore_id=ct.id) }}"
+              onsubmit="return confirm('「{{ ct.name }}」を削除しますか？')">
+          <button class="btn btn-sm btn-outline-danger">削除</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
     <button class="btn btn-success btn-sm" onclick="document.getElementById('add-chore-form').classList.toggle('d-none')">
       <i class="bi bi-plus-circle me-1"></i>家事を追加
     </button>
@@ -171,34 +153,18 @@
 <div class="card mb-4">
   <div class="card-header">教科の管理</div>
   <div class="card-body">
-    <div class="table-responsive mb-3">
-      <table class="table table-sm align-middle">
-        <thead><tr><th>順</th><th>名前</th><th>削除</th></tr></thead>
-        <tbody>
-          {% for s in subjects %}
-          <tr>
-            <td>
-              <form method="post" action="{{ url_for('admin.move_subject', subject_id=s.id) }}" class="d-inline">
-                <input type="hidden" name="direction" value="up">
-                <button class="btn btn-sm btn-outline-secondary py-0 px-1" {% if loop.first %}disabled{% endif %}>▲</button>
-              </form>
-              <form method="post" action="{{ url_for('admin.move_subject', subject_id=s.id) }}" class="d-inline">
-                <input type="hidden" name="direction" value="down">
-                <button class="btn btn-sm btn-outline-secondary py-0 px-1" {% if loop.last %}disabled{% endif %}>▼</button>
-              </form>
-            </td>
-            <td>{{ s.name }}</td>
-            <td>
-              <form method="post" action="{{ url_for('admin.delete_subject', subject_id=s.id) }}"
-                    onsubmit="return confirm('「{{ s.name }}」を削除しますか？')">
-                <button class="btn btn-sm btn-outline-danger">削除</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <ul class="list-group mb-3" id="subject-sortable">
+      {% for s in subjects %}
+      <li class="list-group-item d-flex align-items-center gap-2" data-id="{{ s.id }}">
+        <span class="drag-handle text-muted" style="cursor:grab;">&#9776;</span>
+        <span class="flex-grow-1">{{ s.name }}</span>
+        <form method="post" action="{{ url_for('admin.delete_subject', subject_id=s.id) }}"
+              onsubmit="return confirm('「{{ s.name }}」を削除しますか？')">
+          <button class="btn btn-sm btn-outline-danger">削除</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
     <form method="post" action="{{ url_for('admin.add_subject') }}" class="row g-2">
       <div class="col-sm-4">
         <input type="text" name="name" class="form-control" placeholder="教科名" required>
@@ -280,6 +246,7 @@
 
 {% endblock %}
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 function openEditModal(userId, name, grade) {
     document.getElementById('edit-name').value = name;
@@ -293,5 +260,31 @@ function openChoreEditModal(choreId, name, price) {
     document.getElementById('edit-chore-form').action = `/admin/chore/${choreId}/edit`;
     new bootstrap.Modal(document.getElementById('editChoreModal')).show();
 }
+
+Sortable.create(document.getElementById('chore-sortable'), {
+    handle: '.drag-handle',
+    animation: 150,
+    onEnd: () => {
+        const ids = [...document.querySelectorAll('#chore-sortable [data-id]')].map(el => parseInt(el.dataset.id));
+        fetch('/admin/chore/reorder', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(ids)
+        });
+    }
+});
+
+Sortable.create(document.getElementById('subject-sortable'), {
+    handle: '.drag-handle',
+    animation: 150,
+    onEnd: () => {
+        const ids = [...document.querySelectorAll('#subject-sortable [data-id]')].map(el => parseInt(el.dataset.id));
+        fetch('/admin/subject/reorder', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(ids)
+        });
+    }
+});
 </script>
 {% endblock %}

@@ -160,25 +160,16 @@ def delete_chore(chore_id):
     flash('家事を削除しました。', 'success')
     return redirect(url_for('admin.index'))
 
-@bp.route('/chore/<int:chore_id>/move', methods=['POST'])
+@bp.route('/chore/reorder', methods=['POST'])
 @login_required
 @parent_required
-def move_chore(chore_id):
+def reorder_chores():
     db = get_db()
-    direction = request.form.get('direction')
-    current = db.execute('SELECT sort_order FROM chore_types WHERE id=?', (chore_id,)).fetchone()
-    if not current:
-        return redirect(url_for('admin.index'))
-    cur_order = current['sort_order']
-    if direction == 'up':
-        swap = db.execute('SELECT id, sort_order FROM chore_types WHERE is_active=1 AND sort_order < ? ORDER BY sort_order DESC LIMIT 1', (cur_order,)).fetchone()
-    else:
-        swap = db.execute('SELECT id, sort_order FROM chore_types WHERE is_active=1 AND sort_order > ? ORDER BY sort_order ASC LIMIT 1', (cur_order,)).fetchone()
-    if swap:
-        db.execute('UPDATE chore_types SET sort_order=? WHERE id=?', (swap['sort_order'], chore_id))
-        db.execute('UPDATE chore_types SET sort_order=? WHERE id=?', (cur_order, swap['id']))
-        db.commit()
-    return redirect(url_for('admin.index'))
+    ids = request.get_json()
+    for i, chore_id in enumerate(ids):
+        db.execute('UPDATE chore_types SET sort_order=? WHERE id=?', (i, chore_id))
+    db.commit()
+    return '', 204
 
 @bp.route('/subject/<int:subject_id>/delete', methods=['POST'])
 @login_required
@@ -190,7 +181,18 @@ def delete_subject(subject_id):
     flash('教科を削除しました。', 'success')
     return redirect(url_for('admin.index'))
 
-@bp.route('/subject/<int:subject_id>/move', methods=['POST'])
+@bp.route('/subject/reorder', methods=['POST'])
+@login_required
+@parent_required
+def reorder_subjects():
+    db = get_db()
+    ids = request.get_json()
+    for i, subject_id in enumerate(ids):
+        db.execute('UPDATE subjects SET sort_order=? WHERE id=?', (i, subject_id))
+    db.commit()
+    return '', 204
+
+@bp.route('/subject/<int:subject_id>/move_unused', methods=['POST'])
 @login_required
 @parent_required
 def move_subject(subject_id):
