@@ -21,16 +21,35 @@ def parent_required(f):
 @login_required
 @parent_required
 def index():
+    from ..utils import get_family
+    from datetime import datetime
     db = get_db()
     children = get_family_children(db)
     pay_rates = db.execute('SELECT * FROM pay_rates ORDER BY id').fetchall()
-    chore_types = db.execute('SELECT * FROM chore_types ORDER BY sort_order').fetchall()
+    chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
     subjects = db.execute('SELECT * FROM subjects ORDER BY sort_order').fetchall()
+    family = get_family(db)
+    parent = db.execute('SELECT * FROM users WHERE id=?', (current_user.id,)).fetchone()
+
+    trial_days_left = None
+    plan_ends_str = None
+    if family:
+        status = family['subscription_status']
+        if status == 'trial' and family['trial_ends_at']:
+            delta = datetime.fromisoformat(family['trial_ends_at']) - datetime.utcnow()
+            trial_days_left = max(0, delta.days)
+        if family['plan_ends_at']:
+            plan_ends_str = family['plan_ends_at'][:10]
+
     return render_template('admin/index.html',
                            children=children,
                            pay_rates=pay_rates,
                            chore_types=chore_types,
-                           subjects=subjects)
+                           subjects=subjects,
+                           family=family,
+                           parent=parent,
+                           trial_days_left=trial_days_left,
+                           plan_ends_str=plan_ends_str)
 
 @bp.route('/user/add', methods=['POST'])
 @login_required
@@ -219,11 +238,17 @@ def edit_profile():
     from werkzeug.security import generate_password_hash
     db = get_db()
     name = request.form.get('name', '').strip()
+    email = request.form.get('email', '').strip()
     password = request.form.get('password', '').strip()
+    family_name = request.form.get('family_name', '').strip()
     if name:
         db.execute('UPDATE users SET name=? WHERE id=?', (name, current_user.id))
+    if email:
+        db.execute('UPDATE users SET email=? WHERE id=?', (email, current_user.id))
     if password:
         db.execute('UPDATE users SET password_hash=? WHERE id=?', (generate_password_hash(password), current_user.id))
+    if family_name and current_user.family_id:
+        db.execute('UPDATE families SET name=? WHERE id=?', (family_name, current_user.family_id))
     db.commit()
     flash('プロフィールを更新しました。', 'success')
     return redirect(url_for('admin.index'))

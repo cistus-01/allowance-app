@@ -3,21 +3,56 @@
 {% block content %}
 <h3 class="mb-4"><i class="bi bi-gear me-2"></i>管理設定</h3>
 
-{# 親プロフィール編集 #}
+{# 親アカウント設定 #}
 <div class="card mb-4">
   <div class="card-header">親アカウント設定</div>
   <div class="card-body">
-    <form method="post" action="{{ url_for('admin.edit_profile') }}" class="row g-2 align-items-end">
-      <div class="col-sm-4">
-        <label class="form-label small">名前</label>
-        <input type="text" name="name" class="form-control" value="{{ current_user.name }}">
-      </div>
-      <div class="col-sm-4">
-        <label class="form-label small">新しいパスワード（変更する場合のみ）</label>
-        <input type="password" name="password" class="form-control" placeholder="変更なければ空欄">
-      </div>
-      <div class="col-sm-2">
-        <button type="submit" class="btn btn-primary w-100">更新</button>
+
+    {# プラン状況 #}
+    <div class="mb-3 p-3 rounded" style="background:#f8f9fa;">
+      <div class="small text-muted mb-1">プラン状況</div>
+      {% if family %}
+        {% if family.subscription_status == 'active' %}
+          <span class="badge bg-success">有料プラン</span>
+          {% if plan_ends_str %}<span class="text-muted small ms-2">{{ plan_ends_str }}まで</span>{% endif %}
+        {% elif family.subscription_status == 'trial' %}
+          <span class="badge bg-warning text-dark">トライアル中</span>
+          {% if trial_days_left is not none %}
+            <span class="text-muted small ms-2">残り{{ trial_days_left }}日</span>
+          {% endif %}
+          <a href="{{ url_for('billing.index') }}" class="btn btn-sm btn-outline-primary ms-2">プランに登録</a>
+        {% else %}
+          <span class="badge bg-danger">期限切れ</span>
+          <a href="{{ url_for('billing.index') }}" class="btn btn-sm btn-outline-primary ms-2">プランに登録</a>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <form method="post" action="{{ url_for('admin.edit_profile') }}">
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label class="form-label small fw-bold">ログインID（変更不可）</label>
+          <input type="text" class="form-control bg-light" value="{{ current_user.username }}" disabled>
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label small fw-bold">表示名</label>
+          <input type="text" name="name" class="form-control" value="{{ current_user.name }}">
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label small fw-bold">メールアドレス</label>
+          <input type="email" name="email" class="form-control" value="{{ parent.email or '' }}" placeholder="例: example@gmail.com">
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label small fw-bold">ファミリー名</label>
+          <input type="text" name="family_name" class="form-control" value="{{ family.name if family else '' }}" placeholder="例: 〇〇家">
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label small fw-bold">新しいパスワード（変更する場合のみ）</label>
+          <input type="password" name="password" class="form-control" placeholder="変更なければ空欄">
+        </div>
+        <div class="col-sm-6 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary w-100">更新する</button>
+        </div>
       </div>
     </form>
   </div>
