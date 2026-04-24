@@ -59,6 +59,10 @@
       .bottom-nav { display: flex; }
       .container.py-4 { padding-bottom: 76px !important; }
     }
+    @media print {
+      .navbar, .bottom-nav, .no-print { display: none !important; }
+      body { background: #fff !important; }
+    }
   </style>
   {% block head %}{% endblock %}
 </head>
