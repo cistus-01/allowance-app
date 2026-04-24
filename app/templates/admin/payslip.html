@@ -96,17 +96,15 @@
       <thead>
         <tr>
           <th style="width:22%">氏名</th>
-          <th style="width:18%">支給額</th>
-          <th style="width:13%">基本給</th>
-          <th style="width:15%">学年給</th>
-          <th style="width:15%">成績給</th>
-          <th style="width:17%">テスト賞与</th>
+          <th style="width:15%">基本給</th>
+          <th style="width:18%">学年給</th>
+          <th style="width:18%">成績給</th>
+          <th style="width:20%">テスト賞与</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td class="label-cell">{{ slip.user.name }}</td>
-          <td class="amount total-row">¥{{ '{:,}'.format(slip.total) }}</td>
           <td>¥{{ slip.base_pay }}</td>
           <td>¥{{ '{:,}'.format(slip.grade_pay) }}</td>
           <td>¥{{ '{:,}'.format(slip.academic_pay) }}</td>
