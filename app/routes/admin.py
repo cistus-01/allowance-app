@@ -263,6 +263,7 @@ def edit_profile():
 
 @bp.route('/rates')
 @login_required
+@parent_required
 def rates():
     db = get_db()
     pay_rates = {r['key']: r for r in db.execute('SELECT * FROM pay_rates').fetchall()}

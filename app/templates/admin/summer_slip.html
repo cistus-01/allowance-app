@@ -42,8 +42,7 @@
       <div>
         <div class="fw-bold fs-5">{{ slip.child.name }}（{{ slip.child.grade }}年）</div>
         <div class="text-muted small">
-          前月給料：¥{{ '{:,}'.format(slip.prev_total) }}
-          → ボーナス額 ¥{{ '{:,}'.format(slip.prev_total) }}
+          前月給料 = ボーナス額：¥{{ '{:,}'.format(slip.prev_total) }}
         </div>
       </div>
       <div>
