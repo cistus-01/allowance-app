@@ -31,8 +31,8 @@
     <form method="post" action="{{ url_for('admin.edit_profile') }}">
       <div class="row g-3">
         <div class="col-sm-6">
-          <label class="form-label small fw-bold">ログインID（変更不可）</label>
-          <input type="text" class="form-control bg-light" value="{{ current_user.username }}" disabled>
+          <label class="form-label small fw-bold">ログインID</label>
+          <input type="text" name="username" class="form-control" value="{{ current_user.username }}" required>
         </div>
         <div class="col-sm-6">
           <label class="form-label small fw-bold">表示名</label>

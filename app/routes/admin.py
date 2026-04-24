@@ -237,10 +237,18 @@ def move_subject(subject_id):
 def edit_profile():
     from werkzeug.security import generate_password_hash
     db = get_db()
+    username = request.form.get('username', '').strip()
     name = request.form.get('name', '').strip()
     email = request.form.get('email', '').strip()
     password = request.form.get('password', '').strip()
     family_name = request.form.get('family_name', '').strip()
+    if username and username != current_user.username:
+        existing = db.execute('SELECT id FROM users WHERE username=? AND id!=?',
+                              (username, current_user.id)).fetchone()
+        if existing:
+            flash('そのログインIDは既に使われています。', 'danger')
+            return redirect(url_for('admin.index'))
+        db.execute('UPDATE users SET username=? WHERE id=?', (username, current_user.id))
     if name:
         db.execute('UPDATE users SET name=? WHERE id=?', (name, current_user.id))
     if email:
