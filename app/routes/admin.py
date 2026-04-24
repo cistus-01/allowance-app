@@ -274,23 +274,27 @@ def payslip():
     children    = get_family_children(db)
     chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
 
+    # 明細は前月の家事を表示（前月分が今月給料に反映される）
+    prev_month = month - 1 if month > 1 else 12
+    prev_year  = year if month > 1 else year - 1
+    prev_month_str = f'{prev_year}-{prev_month:02d}'
+
     slips = []
     for child in children:
-        salary   = calc_monthly_salary(child['id'], year, month)
-        month_str = f'{year}-{month:02d}'
+        salary = calc_monthly_salary(child['id'], year, month)
         chore_detail = []
         for ct in chore_types:
             cnt = db.execute('''
                 SELECT COUNT(*) AS c FROM chore_records
                 WHERE user_id=? AND chore_type_id=?
                   AND strftime('%Y-%m', record_date)=?
-            ''', (child['id'], ct['id'], month_str)).fetchone()['c']
+            ''', (child['id'], ct['id'], prev_month_str)).fetchone()['c']
             pay = 0
             days = db.execute('''
                 SELECT record_date FROM chore_records
                 WHERE user_id=? AND chore_type_id=?
                   AND strftime('%Y-%m', record_date)=?
-            ''', (child['id'], ct['id'], month_str)).fetchall()
+            ''', (child['id'], ct['id'], prev_month_str)).fetchall()
             for day in days:
                 shared_cnt = db.execute('''
                     SELECT COUNT(*) AS c FROM chore_records

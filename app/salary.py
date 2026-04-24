@@ -135,11 +135,14 @@ def calc_test_bonus(user_id, year, month):
     return total, len(subjects), subjects
 
 def calc_monthly_salary(user_id, year, month):
-    """月次給与の全項目を計算"""
+    """月次給与の全項目を計算。家事・テストボーナスは前月分を今月に反映。"""
     rates = get_pay_rates()
     base_pay = rates.get('base_pay', 100)
     grade_pay, academic_pay, total_academic = calc_academic_pay_for_month(user_id, year, month)
-    chore_pay = calc_chore_pay(user_id, year, month)
+    # 前月の家事を今月の給料に反映
+    prev_month = month - 1 if month > 1 else 12
+    prev_year  = year if month > 1 else year - 1
+    chore_pay = calc_chore_pay(user_id, prev_year, prev_month)
     bonus_pay, bonus_cnt, bonus_subjects = calc_test_bonus(user_id, year, month)
     total = base_pay + total_academic + chore_pay + bonus_pay
     return {
