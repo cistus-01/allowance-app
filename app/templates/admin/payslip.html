@@ -6,12 +6,13 @@
     @page { size: A4; margin: 8mm; }
     body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .container { max-width: 100% !important; padding: 0 !important; }
-    .slip-card { box-shadow: none !important; border: 2px solid #2e7d32 !important; margin-bottom: 8px !important; }
+    .slip-card { box-shadow: none !important; border: 2px solid #2e7d32 !important; margin-bottom: 6px !important; }
     .slip-table th, .slip-table td { padding: 3px 6px !important; font-size: .78rem !important; }
     .slip-header { padding: 5px 10px !important; }
     .slip-name { font-size: 1rem !important; }
     .slip-total { font-size: 1.1rem !important; }
     .p-2 { padding: 4px !important; }
+    .cut-line { display: flex !important; }
   }
   .slip-card {
     border: 2px solid #2e7d32;
@@ -42,6 +43,19 @@
   .slip-table .amount { font-weight: bold; color: #1b5e20; }
   .chore-section th { background: #e8f5e9; }
   .total-row { background: #a5d6a7 !important; font-weight: bold; font-size: 1rem; }
+  .cut-line {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    color: #aaa;
+    font-size: .8rem;
+    margin: 6px 0;
+  }
+  .cut-line::before, .cut-line::after {
+    content: '';
+    flex: 1;
+    border-top: 1px dashed #aaa;
+  }
 </style>
 {% endblock %}
 {% block content %}
@@ -61,6 +75,9 @@
 </div>
 
 {% for slip in slips %}
+{% if not loop.first %}
+<div class="cut-line">✂ 切り取り線</div>
+{% endif %}
 <div class="slip-card">
   <div class="slip-header">
     <div>
@@ -74,36 +91,45 @@
   </div>
 
   <div class="p-2">
+    {# 給与サマリー #}
     <table class="slip-table">
       <thead>
         <tr>
-          <th style="width:25%">氏名</th>
-          <th style="width:20%">支給額</th>
-          <th style="width:15%">基本給</th>
-          <th colspan="2">学業給</th>
-        </tr>
-        <tr>
-          <th></th><th></th><th></th>
-          <th style="width:20%">学年給</th>
-          <th style="width:20%">成績給</th>
+          <th style="width:22%">氏名</th>
+          <th style="width:18%">支給額</th>
+          <th style="width:13%">基本給</th>
+          <th style="width:15%">学年給</th>
+          <th style="width:15%">成績給</th>
+          <th style="width:17%">テスト賞与</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td class="label-cell">{{ slip.user.name }}</td>
-          <td class="amount">¥{{ '{:,}'.format(slip.total) }}</td>
+          <td class="amount total-row">¥{{ '{:,}'.format(slip.total) }}</td>
           <td>¥{{ slip.base_pay }}</td>
           <td>¥{{ '{:,}'.format(slip.grade_pay) }}</td>
           <td>¥{{ '{:,}'.format(slip.academic_pay) }}</td>
+          <td class="{% if slip.bonus_pay > 0 %}amount{% endif %}">
+            {% if slip.bonus_pay > 0 %}
+              ¥{{ '{:,}'.format(slip.bonus_pay) }}
+              <div style="font-size:.7rem; color:#888; font-weight:normal;">
+                {{ slip.bonus_subjects | join('・') }}
+              </div>
+            {% else %}
+              —
+            {% endif %}
+          </td>
         </tr>
       </tbody>
     </table>
 
+    {# 家事内訳 #}
     <table class="slip-table mt-1 chore-section">
       <thead>
         <tr>
           <td colspan="{{ slip.chore_detail | length + 1 }}" class="label-cell" style="background:#e8f5e9;">
-            インプレッション（¥{{ '{:,}'.format(slip.chore_total) }}）
+            家事報酬（¥{{ '{:,}'.format(slip.chore_total) }}）
           </td>
         </tr>
         <tr>

@@ -265,7 +265,7 @@ def rates():
 @login_required
 @parent_required
 def payslip():
-    from ..salary import calc_chore_pay, calc_academic_pay_for_month, get_pay_rates
+    from ..salary import calc_monthly_salary
     db = get_db()
     today = date.today()
     year  = request.args.get('year',  today.year,  type=int)
@@ -273,15 +273,12 @@ def payslip():
 
     children    = get_family_children(db)
     chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
-    rates       = get_pay_rates()
 
     slips = []
     for child in children:
-        grade_pay, academic_pay, _ = calc_academic_pay_for_month(child['id'], year, month)
-        base_pay = rates.get('base_pay', 100)
+        salary   = calc_monthly_salary(child['id'], year, month)
+        month_str = f'{year}-{month:02d}'
         chore_detail = []
-        chore_total  = 0
-        month_str    = f'{year}-{month:02d}'
         for ct in chore_types:
             cnt = db.execute('''
                 SELECT COUNT(*) AS c FROM chore_records
@@ -301,17 +298,18 @@ def payslip():
                 ''', (ct['id'], day['record_date'])).fetchone()['c']
                 pay += ct['unit_price'] // shared_cnt
             chore_detail.append({'name': ct['name'], 'count': cnt, 'pay': pay})
-            chore_total += pay
 
-        total = base_pay + grade_pay + academic_pay + chore_total
         slips.append({
             'user': child,
-            'base_pay': base_pay,
-            'grade_pay': grade_pay,
-            'academic_pay': academic_pay,
+            'base_pay':     salary['base_pay'],
+            'grade_pay':    salary['grade_pay'],
+            'academic_pay': salary['academic_pay'],
             'chore_detail': chore_detail,
-            'chore_total': chore_total,
-            'total': total,
+            'chore_total':  salary['chore_pay'],
+            'bonus_pay':    salary['bonus_pay'],
+            'bonus_cnt':    salary['bonus_cnt'],
+            'bonus_subjects': salary['bonus_subjects'],
+            'total':        salary['total'],
         })
 
     prev_year,  prev_month  = (year, month - 1) if month > 1  else (year - 1, 12)
