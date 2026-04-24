@@ -1,3 +1,4 @@
+import json
 from datetime import date
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
@@ -41,6 +42,13 @@ def index():
         if family['plan_ends_at']:
             plan_ends_str = family['plan_ends_at'][:10]
 
+    # プリセット
+    presets = {}
+    if family:
+        rows = db.execute('SELECT * FROM config_presets WHERE family_id=?', (family['id'],)).fetchall()
+        for r in rows:
+            presets[r['slot']] = r
+
     return render_template('admin/index.html',
                            children=children,
                            pay_rates=pay_rates,
@@ -49,7 +57,8 @@ def index():
                            family=family,
                            parent=parent,
                            trial_days_left=trial_days_left,
-                           plan_ends_str=plan_ends_str)
+                           plan_ends_str=plan_ends_str,
+                           presets=presets)
 
 @bp.route('/user/add', methods=['POST'])
 @login_required
@@ -492,3 +501,99 @@ def delete_bonus(record_id):
     if redirect_to == 'summer_slip':
         return redirect(url_for('admin.summer_slip', start_date=request.form.get('start_date', '')))
     return redirect(url_for('admin.bonus'))
+
+
+@bp.route('/preset/<int:slot>/save', methods=['POST'])
+@login_required
+@parent_required
+def save_preset(slot):
+    if slot not in (1, 2, 3):
+        flash('無効なスロットです。', 'danger')
+        return redirect(url_for('admin.index'))
+    from ..utils import get_family
+    db = get_db()
+    family = get_family(db)
+    if not family:
+        flash('ファミリーが見つかりません。', 'danger')
+        return redirect(url_for('admin.index'))
+
+    label = request.form.get('label', '').strip() or f'設定{slot}'
+    pay_rates = {r['key']: r['value'] for r in db.execute('SELECT key, value FROM pay_rates').fetchall()}
+    subjects = [{'name': r['name'], 'sort_order': r['sort_order']}
+                for r in db.execute('SELECT name, sort_order FROM subjects WHERE is_active=1 ORDER BY sort_order').fetchall()]
+    chore_types = [{'name': r['name'], 'unit_price': r['unit_price'], 'sort_order': r['sort_order']}
+                   for r in db.execute('SELECT name, unit_price, sort_order FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()]
+
+    db.execute('''
+        INSERT INTO config_presets (family_id, slot, label, pay_rates_json, subjects_json, chore_types_json, saved_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(family_id, slot) DO UPDATE SET
+            label=excluded.label,
+            pay_rates_json=excluded.pay_rates_json,
+            subjects_json=excluded.subjects_json,
+            chore_types_json=excluded.chore_types_json,
+            saved_at=CURRENT_TIMESTAMP
+    ''', (family['id'], slot, label, json.dumps(pay_rates, ensure_ascii=False),
+          json.dumps(subjects, ensure_ascii=False), json.dumps(chore_types, ensure_ascii=False)))
+    db.commit()
+    flash(f'「{label}」を保存しました。', 'success')
+    return redirect(url_for('admin.index') + '#presets')
+
+
+@bp.route('/preset/<int:slot>/load', methods=['POST'])
+@login_required
+@parent_required
+def load_preset(slot):
+    if slot not in (1, 2, 3):
+        flash('無効なスロットです。', 'danger')
+        return redirect(url_for('admin.index'))
+    from ..utils import get_family
+    db = get_db()
+    family = get_family(db)
+    if not family:
+        flash('ファミリーが見つかりません。', 'danger')
+        return redirect(url_for('admin.index'))
+
+    preset = db.execute('SELECT * FROM config_presets WHERE family_id=? AND slot=?',
+                        (family['id'], slot)).fetchone()
+    if not preset:
+        flash('保存されたデータがありません。', 'warning')
+        return redirect(url_for('admin.index'))
+
+    pay_rates = json.loads(preset['pay_rates_json'])
+    subjects = json.loads(preset['subjects_json'])
+    chore_types = json.loads(preset['chore_types_json'])
+
+    # 単価を復元
+    for key, value in pay_rates.items():
+        db.execute('UPDATE pay_rates SET value=? WHERE key=?', (value, key))
+
+    # 教科を復元（既存を一旦非表示、プリセット内容を有効化）
+    db.execute('UPDATE subjects SET is_active=0')
+    for s in subjects:
+        existing = db.execute('SELECT id FROM subjects WHERE name=?', (s['name'],)).fetchone()
+        if existing:
+            db.execute('UPDATE subjects SET is_active=1, sort_order=? WHERE id=?',
+                       (s['sort_order'], existing['id']))
+        else:
+            db.execute('INSERT INTO subjects (name, sort_order, is_active) VALUES (?, ?, 1)',
+                       (s['name'], s['sort_order']))
+            new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+            for grade in range(1, 7):
+                db.execute('INSERT OR IGNORE INTO grade_subjects (grade, subject_id) VALUES (?, ?)',
+                           (grade, new_id))
+
+    # 家事を復元
+    db.execute('UPDATE chore_types SET is_active=0')
+    for ct in chore_types:
+        existing = db.execute('SELECT id FROM chore_types WHERE name=?', (ct['name'],)).fetchone()
+        if existing:
+            db.execute('UPDATE chore_types SET is_active=1, unit_price=?, sort_order=? WHERE id=?',
+                       (ct['unit_price'], ct['sort_order'], existing['id']))
+        else:
+            db.execute('INSERT INTO chore_types (name, unit_price, sort_order, is_active) VALUES (?, ?, ?, 1)',
+                       (ct['name'], ct['unit_price'], ct['sort_order']))
+
+    db.commit()
+    flash(f'「{preset["label"]}」を読み込みました。', 'success')
+    return redirect(url_for('admin.index') + '#presets')

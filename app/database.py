@@ -49,6 +49,21 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
+
+    # 設定プリセットテーブル
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS config_presets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            family_id INTEGER NOT NULL,
+            slot INTEGER NOT NULL CHECK(slot IN (1, 2, 3)),
+            label TEXT DEFAULT '',
+            pay_rates_json TEXT NOT NULL DEFAULT '{}',
+            subjects_json TEXT NOT NULL DEFAULT '[]',
+            chore_types_json TEXT NOT NULL DEFAULT '[]',
+            saved_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(family_id, slot)
+        )
+    ''')
     db.commit()
 
     db.close()

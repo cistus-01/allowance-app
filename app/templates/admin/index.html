@@ -212,6 +212,52 @@
   </div>
 </div>
 
+{# 設定プリセット #}
+<div class="card mb-4" id="presets">
+  <div class="card-header">設定プリセット</div>
+  <div class="card-body">
+    <p class="text-muted small mb-3">現在の「単価・教科・家事」の設定を3つまで保存・呼び出しできます。</p>
+    <div class="row g-3">
+      {% for slot in [1, 2, 3] %}
+      {% set preset = presets.get(slot) %}
+      <div class="col-md-4">
+        <div class="border rounded p-3 h-100">
+          <div class="fw-bold mb-2">設定{{ slot }}</div>
+          {% if preset %}
+            <div class="mb-2">
+              <div class="badge bg-secondary mb-1">{{ preset.label }}</div>
+              <div class="text-muted small">{{ preset.saved_at[:10] }} 保存</div>
+            </div>
+            {# 読み込みボタン #}
+            <form method="post" action="{{ url_for('admin.load_preset', slot=slot) }}"
+                  onsubmit="return confirm('「{{ preset.label }}」を読み込みます。現在の設定は上書きされます。よろしいですか？')">
+              <button type="submit" class="btn btn-sm btn-primary w-100 mb-2">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>読み込む
+              </button>
+            </form>
+          {% else %}
+            <div class="text-muted small mb-3">（未保存）</div>
+          {% endif %}
+          {# 保存ボタン #}
+          <button class="btn btn-sm btn-outline-success w-100"
+                  onclick="document.getElementById('save-preset-form-{{ slot }}').classList.toggle('d-none')">
+            <i class="bi bi-floppy me-1"></i>{% if preset %}上書き保存{% else %}現在の設定を保存{% endif %}
+          </button>
+          <div id="save-preset-form-{{ slot }}" class="d-none mt-2">
+            <form method="post" action="{{ url_for('admin.save_preset', slot=slot) }}">
+              <input type="text" name="label" class="form-control form-control-sm mb-1"
+                     placeholder="名前（例：夏休み設定）"
+                     value="{{ preset.label if preset else '設定' + slot|string }}">
+              <button type="submit" class="btn btn-success btn-sm w-100">保存する</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
 {# 子供編集モーダル #}
 <div class="modal fade" id="editUserModal" tabindex="-1">
   <div class="modal-dialog">
