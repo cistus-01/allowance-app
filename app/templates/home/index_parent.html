@@ -50,6 +50,9 @@
 
 {# メニュータイル #}
 <div class="row g-3 mb-2">
+
+  {# 日常操作 #}
+  <div class="col-12"><span class="text-muted small fw-bold">日常操作</span></div>
   <div class="col-6">
     <a href="{{ url_for('chores.index', child_id=selected_id) }}" class="text-decoration-none">
       <div class="card h-100 text-center p-3" style="cursor:pointer;">
@@ -66,6 +69,9 @@
       </div>
     </a>
   </div>
+
+  {# ボーナス #}
+  <div class="col-12"><span class="text-muted small fw-bold">ボーナス</span></div>
   <div class="col-6">
     <a href="{{ url_for('admin.bonus') }}" class="text-decoration-none">
       <div class="card h-100 text-center p-3" style="cursor:pointer; background:#fffde7;">
@@ -74,6 +80,17 @@
       </div>
     </a>
   </div>
+  <div class="col-6">
+    <a href="{{ url_for('admin.summer_slip') }}" class="text-decoration-none">
+      <div class="card h-100 text-center p-3" style="cursor:pointer; background:#fffde7;">
+        <i class="bi bi-sun fs-1 text-warning mb-2"></i>
+        <div class="fw-bold">夏休みボーナス明細</div>
+      </div>
+    </a>
+  </div>
+
+  {# 確認・分析 #}
+  <div class="col-12"><span class="text-muted small fw-bold">確認・分析</span></div>
   <div class="col-6">
     <a href="{{ url_for('finance.index', child_id=selected_id) }}" class="text-decoration-none">
       <div class="card h-100 text-center p-3" style="cursor:pointer;">
@@ -99,14 +116,6 @@
     </a>
   </div>
   <div class="col-6">
-    <a href="{{ url_for('admin.summer_slip') }}" class="text-decoration-none">
-      <div class="card h-100 text-center p-3" style="cursor:pointer; background:#fff8e1;">
-        <i class="bi bi-sun fs-1 text-warning mb-2"></i>
-        <div class="fw-bold">夏休みボーナス明細</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-6">
     <a href="{{ url_for('admin.rates') }}" class="text-decoration-none">
       <div class="card h-100 text-center p-3" style="cursor:pointer;">
         <i class="bi bi-table fs-1 text-secondary mb-2"></i>
@@ -114,6 +123,7 @@
       </div>
     </a>
   </div>
+
 </div>
 {% endif %}
 {% endblock %}
