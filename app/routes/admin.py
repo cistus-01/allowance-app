@@ -328,37 +328,80 @@ def payslip():
 @login_required
 @parent_required
 def summer_slip():
-    from ..salary import calc_chore_pay, calc_test_bonus
+    from ..salary import calc_monthly_salary
     import datetime
     db = get_db()
-    year = request.args.get('year', datetime.date.today().year, type=int)
+    today = datetime.date.today()
+    start_date_str = request.args.get('start_date', '')
+    deadline_str = ''
+    is_past_deadline = False
+
+    if start_date_str:
+        try:
+            start = datetime.date.fromisoformat(start_date_str)
+            deadline = start + datetime.timedelta(days=14)
+            deadline_str = deadline.strftime('%Y年%m月%d日')
+            is_past_deadline = today > deadline
+        except ValueError:
+            start_date_str = ''
+
     children = get_family_children(db)
     slips = []
-    for child in children:
-        chore_july_pay = calc_chore_pay(child['id'], year, 7)
-        chore_aug_pay  = calc_chore_pay(child['id'], year, 8)
-        july_cnt = db.execute('''SELECT COUNT(*) as c FROM chore_records
-            WHERE user_id=? AND strftime('%Y-%m', record_date)=?''',
-            (child['id'], f'{year}-07')).fetchone()['c']
-        aug_cnt = db.execute('''SELECT COUNT(*) as c FROM chore_records
-            WHERE user_id=? AND strftime('%Y-%m', record_date)=?''',
-            (child['id'], f'{year}-08')).fetchone()['c']
-        bonus_july, bonus_july_cnt, _ = calc_test_bonus(child['id'], year, 7)
-        bonus_aug,  bonus_aug_cnt,  _ = calc_test_bonus(child['id'], year, 8)
-        bonus_pay = bonus_july + bonus_aug
-        bonus_cnt = bonus_july_cnt + bonus_aug_cnt
-        total = chore_july_pay + chore_aug_pay + bonus_pay
-        slips.append({
-            'child': child,
-            'chore_july_cnt': july_cnt,
-            'chore_july_pay': chore_july_pay,
-            'chore_aug_cnt': aug_cnt,
-            'chore_aug_pay': chore_aug_pay,
-            'bonus_pay': bonus_pay,
-            'bonus_cnt': bonus_cnt,
-            'total': total,
-        })
-    return render_template('admin/summer_slip.html', slips=slips, year=year)
+
+    if start_date_str:
+        for child in children:
+            # 前月給料（夏休み開始日の前月）
+            start = datetime.date.fromisoformat(start_date_str)
+            prev_month = start.month - 1 if start.month > 1 else 12
+            prev_year  = start.year if start.month > 1 else start.year - 1
+            prev_salary = calc_monthly_salary(child['id'], prev_year, prev_month)
+            prev_month_label = f'{prev_year}年{prev_month}月'
+
+            # 既に付与済みか確認
+            given = db.execute('''
+                SELECT amount, record_date FROM finance_records
+                WHERE user_id=? AND category='summer_bonus'
+                  AND strftime('%Y', record_date)=?
+                ORDER BY record_date DESC LIMIT 1
+            ''', (child['id'], str(start.year))).fetchone()
+
+            slips.append({
+                'child': child,
+                'prev_total': prev_salary['total'],
+                'prev_month_label': prev_month_label,
+                'already_given': given is not None,
+                'given_amount': given['amount'] if given else 0,
+                'given_date': given['record_date'] if given else '',
+            })
+
+    return render_template('admin/summer_slip.html',
+                           slips=slips,
+                           start_date=start_date_str,
+                           deadline=deadline_str,
+                           is_past_deadline=is_past_deadline,
+                           today=today)
+
+@bp.route('/summer_bonus/give', methods=['POST'])
+@login_required
+@parent_required
+def give_summer_bonus():
+    import datetime
+    db = get_db()
+    user_id = request.form.get('user_id', type=int)
+    amount   = request.form.get('amount', type=int)
+    start_date_str = request.form.get('start_date', '')
+    if not verify_child_ownership(db, user_id):
+        flash('権限がありません。', 'danger')
+        return redirect(url_for('admin.summer_slip'))
+    if user_id and amount and amount > 0:
+        record_date = str(datetime.date.today())
+        db.execute('''
+            INSERT INTO finance_records (user_id, record_date, type, category, amount, note, created_by)
+            VALUES (?, ?, 'income', 'summer_bonus', ?, '夏休みボーナス（全宿題2週間以内完了）', ?)
+        ''', (user_id, record_date, amount, current_user.id))
+        db.commit()
+        flash('夏休みボーナスを付与しました！', 'success')
+    return redirect(url_for('admin.summer_slip', start_date=start_date_str))
 
 @bp.route('/bonus', methods=['GET'])
 @login_required

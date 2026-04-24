@@ -5,49 +5,109 @@
   <a href="{{ url_for('home.index') }}" class="btn btn-outline-secondary btn-sm me-3">
     <i class="bi bi-arrow-left"></i>
   </a>
-  <h3 class="mb-0"><i class="bi bi-sun me-2 text-warning"></i>夏休みボーナス明細</h3>
+  <h3 class="mb-0"><i class="bi bi-sun me-2 text-warning"></i>夏休みボーナス</h3>
 </div>
 
-{% for slip in slips %}
+{# 夏休み開始日の設定 #}
 <div class="card mb-4">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <span>{{ slip.child.name }}（{{ slip.child.grade }}年）</span>
-    <span class="fw-bold fs-5">合計 ¥{{ '{:,}'.format(slip.total) }}</span>
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-bordered text-center mb-0">
-      <thead style="background:#fff8e1;">
-        <tr><th>項目</th><th>内容</th><th>金額</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>家事（7月）</td>
-          <td>{{ slip.chore_july_cnt }}回</td>
-          <td>¥{{ '{:,}'.format(slip.chore_july_pay) }}</td>
-        </tr>
-        <tr>
-          <td>家事（8月）</td>
-          <td>{{ slip.chore_aug_cnt }}回</td>
-          <td>¥{{ '{:,}'.format(slip.chore_aug_pay) }}</td>
-        </tr>
-        <tr>
-          <td>テスト満点ボーナス</td>
-          <td>{{ slip.bonus_cnt }}科目</td>
-          <td>¥{{ '{:,}'.format(slip.bonus_pay) }}</td>
-        </tr>
-        <tr class="table-warning fw-bold">
-          <td colspan="2">夏休みボーナス合計</td>
-          <td>¥{{ '{:,}'.format(slip.total) }}</td>
-        </tr>
-      </tbody>
-    </table>
+  <div class="card-header">夏休み開始日</div>
+  <div class="card-body">
+    <form method="get" class="d-flex align-items-center gap-3 flex-wrap">
+      <div>
+        <label class="form-label small fw-bold mb-1">夏休み開始日</label>
+        <input type="date" name="start_date" class="form-control" value="{{ start_date }}" required>
+      </div>
+      <div class="d-flex align-items-end" style="padding-bottom: 1px;">
+        <button type="submit" class="btn btn-primary">確認する</button>
+      </div>
+      {% if deadline %}
+      <div class="align-self-end pb-1">
+        <span class="text-muted small">締め切り：</span>
+        <span class="fw-bold {% if is_past_deadline %}text-danger{% else %}text-success{% endif %}">
+          {{ deadline }}（2週間以内）
+        </span>
+      </div>
+      {% endif %}
+    </form>
   </div>
 </div>
-{% endfor %}
 
-<div class="text-center mt-3">
-  <button class="btn btn-outline-secondary" onclick="window.print()">
-    <i class="bi bi-printer me-1"></i>印刷する
-  </button>
+{% if slips %}
+{# 各子供のクリア確認 #}
+<div class="card mb-4">
+  <div class="card-header">宿題クリア確認</div>
+  <div class="card-body">
+    {% for slip in slips %}
+    <div class="d-flex align-items-center justify-content-between p-3 mb-2 rounded border">
+      <div>
+        <div class="fw-bold fs-5">{{ slip.child.name }}（{{ slip.child.grade }}年）</div>
+        <div class="text-muted small">
+          前月給料：¥{{ '{:,}'.format(slip.prev_total) }}
+          → ボーナス額 ¥{{ '{:,}'.format(slip.prev_total) }}
+        </div>
+      </div>
+      <div>
+        {% if slip.already_given %}
+        <span class="badge bg-success fs-6">✅ 付与済み ¥{{ '{:,}'.format(slip.given_amount) }}</span>
+        {% else %}
+        <form method="post" action="{{ url_for('admin.give_summer_bonus') }}"
+              onsubmit="return confirm('{{ slip.child.name }}に夏休みボーナス ¥{{ '{:,}'.format(slip.prev_total) }} を付与しますか？')">
+          <input type="hidden" name="user_id" value="{{ slip.child.id }}">
+          <input type="hidden" name="start_date" value="{{ start_date }}">
+          <input type="hidden" name="amount" value="{{ slip.prev_total }}">
+          <button type="submit" class="btn btn-warning fw-bold">
+            <i class="bi bi-check-circle me-1"></i>クリア！付与する
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
 </div>
+
+{# 付与済みの明細 #}
+{% set given_slips = slips | selectattr('already_given') | list %}
+{% if given_slips %}
+<div class="card mb-4" id="print-area">
+  <div class="card-header">夏休みボーナス明細</div>
+  <div class="card-body">
+    {% for slip in given_slips %}
+    <div class="mb-4 p-3 border rounded">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <div class="fw-bold fs-5">{{ slip.child.name }}（{{ slip.child.grade }}年）</div>
+          <div class="text-muted small">{{ slip.given_date }} 付与</div>
+        </div>
+        <div class="text-end">
+          <div class="text-muted small">夏休みボーナス</div>
+          <div class="fw-bold fs-4 text-warning">¥{{ '{:,}'.format(slip.given_amount) }}</div>
+        </div>
+      </div>
+      <table class="table table-sm table-bordered text-center">
+        <thead style="background:#fff8e1;">
+          <tr><th>算定基準</th><th>金額</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>前月給料（{{ slip.prev_month_label }}）</td>
+            <td class="fw-bold">¥{{ '{:,}'.format(slip.prev_total) }}</td>
+          </tr>
+          <tr class="table-warning fw-bold">
+            <td>夏休みボーナス（全宿題2週間以内完了）</td>
+            <td>¥{{ '{:,}'.format(slip.given_amount) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+    <div class="text-center mt-2">
+      <button class="btn btn-outline-secondary" onclick="window.print()">
+        <i class="bi bi-printer me-1"></i>印刷する
+      </button>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endif %}
 {% endblock %}
