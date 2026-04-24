@@ -602,8 +602,8 @@ def load_preset(slot):
 _DEFAULT_PAY_RATES = {
     'base_pay': 100,
     'grade_pay_multiplier': 50,
-    'eval_excellent': 150,
-    'eval_good': 20,
+    'eval_excellent': 50,
+    'eval_good': 15,
     'eval_poor': 0,
 }
 _DEFAULT_SUBJECTS = [
