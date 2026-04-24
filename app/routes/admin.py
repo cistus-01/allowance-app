@@ -406,6 +406,14 @@ def give_summer_bonus():
         flash('夏休みボーナスを付与しました！', 'success')
     return redirect(url_for('admin.summer_slip', start_date=start_date_str))
 
+def _grade_pay_unit(db, user_id):
+    """その子の学年給（= テストボーナス1科目の単価）を返す"""
+    multiplier = db.execute('SELECT value FROM pay_rates WHERE key="grade_pay_multiplier"').fetchone()
+    m = multiplier['value'] if multiplier else 50
+    user = db.execute('SELECT grade FROM users WHERE id=?', (user_id,)).fetchone()
+    grade = user['grade'] if user and user['grade'] else 1
+    return grade * m
+
 @bp.route('/bonus', methods=['GET'])
 @login_required
 @parent_required
@@ -414,8 +422,8 @@ def bonus():
     db = get_db()
     children = get_family_children(db)
     subjects = db.execute('SELECT * FROM subjects ORDER BY sort_order').fetchall()
-    rates = db.execute('SELECT * FROM pay_rates WHERE key="test_bonus_per_subject"').fetchone()
-    unit_price = rates['value'] if rates else 300
+    # 子供ごとの単価（学年給）を辞書で渡す
+    unit_prices = {c['id']: _grade_pay_unit(db, c['id']) for c in children}
     child_ids = [c['id'] for c in children]
     bonus_records = []
     if child_ids:
@@ -429,7 +437,7 @@ def bonus():
         ''', child_ids).fetchall()
         bonus_records = rows
     return render_template('admin/bonus.html', children=children, subjects=subjects,
-                           bonus_records=bonus_records, unit_price=unit_price,
+                           bonus_records=bonus_records, unit_prices=unit_prices,
                            today=date.today())
 
 @bp.route('/bonus/give', methods=['POST'])
@@ -445,8 +453,7 @@ def give_bonus():
     if not verify_child_ownership(db, user_id):
         flash('権限がありません。', 'danger')
         return redirect(url_for('admin.bonus'))
-    rates = db.execute('SELECT value FROM pay_rates WHERE key="test_bonus_per_subject"').fetchone()
-    unit_price = rates['value'] if rates else 300
+    unit_price = _grade_pay_unit(db, user_id)
     if user_id and subject_names:
         for subject in subject_names:
             db.execute('''
