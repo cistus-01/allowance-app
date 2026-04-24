@@ -202,6 +202,14 @@
             </div>
             <div class="modal-body">
               <div class="mb-3">
+                <label class="form-label small fw-bold">対象の子供</label>
+                <select name="user_id" class="form-select" required>
+                  {% for child in children %}
+                  <option value="{{ child.id }}" {% if child.id == ch.user_id %}selected{% endif %}>{{ child.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="mb-3">
                 <label class="form-label small fw-bold">チャレンジ名</label>
                 <input type="text" name="title" class="form-control" value="{{ ch.title }}" required>
               </div>

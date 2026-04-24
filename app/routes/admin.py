@@ -531,14 +531,16 @@ def challenge_edit(challenge_id):
     if not ch:
         flash('チャレンジが見つかりません。', 'danger')
         return redirect(url_for('admin.bonus') + '#challenge')
+    user_id = request.form.get('user_id', type=int)
     title = request.form.get('title', '').strip()
     condition = request.form.get('condition', '').strip()
     reward_amount = request.form.get('reward_amount', type=int)
     if not title or not reward_amount or reward_amount <= 0:
         flash('入力内容を確認してください。', 'danger')
         return redirect(url_for('admin.bonus') + '#challenge')
-    db.execute('UPDATE challenges SET title=?, condition=?, reward_amount=? WHERE id=?',
-               (title, condition or None, reward_amount, challenge_id))
+    new_user_id = user_id if user_id and verify_child_ownership(db, user_id) else ch['user_id']
+    db.execute('UPDATE challenges SET user_id=?, title=?, condition=?, reward_amount=? WHERE id=?',
+               (new_user_id, title, condition or None, reward_amount, challenge_id))
     db.commit()
     flash(f'チャレンジ「{title}」を更新しました。', 'success')
     return redirect(url_for('admin.bonus') + '#challenge')
