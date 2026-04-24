@@ -129,7 +129,6 @@
           {% for cd in slip.chore_detail %}
           <th>{{ cd.name }}（{{ cd.count }}）</th>
           {% endfor %}
-          <th>合計</th>
         </tr>
       </thead>
       <tbody>
@@ -137,7 +136,6 @@
           {% for cd in slip.chore_detail %}
           <td class="amount">¥{{ '{:,}'.format(cd.pay) }}</td>
           {% endfor %}
-          <td class="amount total-row">¥{{ '{:,}'.format(slip.chore_total) }}</td>
         </tr>
       </tbody>
     </table>
