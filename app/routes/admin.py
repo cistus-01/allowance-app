@@ -600,10 +600,10 @@ def load_preset(slot):
 
 
 _DEFAULT_PAY_RATES = {
-    'base_pay': 100,
-    'grade_pay_multiplier': 50,
-    'eval_excellent': 150,
-    'eval_good': 20,
+    'base_pay': 300,
+    'grade_pay_multiplier': 150,
+    'eval_excellent': 200,
+    'eval_good': 50,
     'eval_poor': 0,
 }
 _DEFAULT_SUBJECTS = [
@@ -614,11 +614,16 @@ _DEFAULT_SUBJECTS = [
     {'name': '道徳', 'sort_order': 9},
 ]
 _DEFAULT_CHORE_TYPES = [
-    {'name': '掃除', 'unit_price': 30, 'sort_order': 1},
-    {'name': '洗濯', 'unit_price': 10, 'sort_order': 2},
-    {'name': '干す',  'unit_price': 30, 'sort_order': 3},
-    {'name': '洗い物', 'unit_price': 20, 'sort_order': 4},
-    {'name': 'しまう', 'unit_price': 10, 'sort_order': 5},
+    {'name': 'テーブル拭き',   'unit_price': 10, 'sort_order': 1},
+    {'name': '食器洗い',      'unit_price': 30, 'sort_order': 2},
+    {'name': '食器片付け',    'unit_price': 20, 'sort_order': 3},
+    {'name': '洗濯物たたみ',  'unit_price': 30, 'sort_order': 4},
+    {'name': '洗濯物干し',    'unit_price': 30, 'sort_order': 5},
+    {'name': '掃除機かけ',    'unit_price': 50, 'sort_order': 6},
+    {'name': 'ゴミ出し',      'unit_price': 30, 'sort_order': 7},
+    {'name': 'お風呂洗い',    'unit_price': 50, 'sort_order': 8},
+    {'name': 'トイレ掃除',    'unit_price': 80, 'sort_order': 9},
+    {'name': '買い物おつかい', 'unit_price': 50, 'sort_order': 10},
 ]
 
 
