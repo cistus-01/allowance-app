@@ -145,7 +145,6 @@
       <span class="fw-bold">テスト賞与内訳</span>
       {% if slip.bonus_pay > 0 %}
       <span class="ms-2">{{ slip.bonus_subjects | join('・') }}</span>
-      <span class="ms-2 fw-bold">¥{{ '{:,}'.format(slip.bonus_pay) }}</span>
       {% else %}
       <span class="ms-2 text-muted">なし</span>
       {% endif %}
