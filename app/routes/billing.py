@@ -115,11 +115,19 @@ def webhook():
     elif event['type'] in ('customer.subscription.deleted', 'customer.subscription.paused'):
         sub = event['data']['object']
         customer_id = sub.get('customer')
-        db.execute(
-            "UPDATE families SET subscription_status='expired' WHERE stripe_customer_id=?",
-            (customer_id,)
-        )
-        db.commit()
+        family = db.execute(
+            "SELECT * FROM families WHERE stripe_customer_id=?", (customer_id,)
+        ).fetchone()
+        if family and family['subscription_status'] == 'canceling':
+            # 退会予約中のサブスク終了 → 全データ削除
+            from .withdraw import _delete_family_data
+            _delete_family_data(db, family['id'])
+        else:
+            db.execute(
+                "UPDATE families SET subscription_status='expired' WHERE stripe_customer_id=?",
+                (customer_id,)
+            )
+            db.commit()
 
     elif event['type'] == 'invoice.payment_succeeded':
         invoice = event['data']['object']

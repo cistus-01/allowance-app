@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}退会予約済み{% endblock %}
+{% block content %}
+
+<div class="text-center mb-4">
+  <div style="font-size:3rem;">📅</div>
+  <h3 class="fw-bold mt-2">退会手続き受付済み</h3>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <p class="mb-1 text-muted small">データ削除予定日</p>
+    <p class="fw-bold fs-5 mb-0">
+      {% if family['scheduled_delete_at'] %}
+        {{ family['scheduled_delete_at'][:10] }}
+      {% else %}
+        サブスクリプション期間終了後
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<div class="alert alert-info mb-4">
+  <i class="bi bi-info-circle me-1"></i>
+  削除予定日までは引き続きすべての機能をご利用いただけます。<br>
+  気が変わった場合は下のボタンから退会をキャンセルできます。
+</div>
+
+<form method="post" action="{{ url_for('withdraw.cancel_withdraw') }}"
+      onsubmit="return confirm('退会をキャンセルしてサービスを継続しますか？')">
+  <button type="submit" class="btn btn-primary w-100 fw-bold mb-3">
+    <i class="bi bi-arrow-counterclockwise me-1"></i>退会をキャンセルする
+  </button>
+</form>
+
+<div class="text-center">
+  <a href="{{ url_for('home.index') }}" class="btn btn-outline-secondary">ホームへ戻る</a>
+</div>
+
+{% endblock %}

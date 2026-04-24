@@ -338,6 +338,16 @@
   </div>
 </div>
 
+{# ===== 退会 ===== #}
+<div class="mt-5 pt-3 border-top text-center">
+  {% if family and family['subscription_status'] == 'canceling' %}
+  <p class="text-warning small mb-2">退会手続き中です（削除予定: {{ family['scheduled_delete_at'][:10] if family['scheduled_delete_at'] else '期間終了後' }}）</p>
+  <a href="{{ url_for('withdraw.scheduled') }}" class="btn btn-outline-warning btn-sm">退会状況を確認・キャンセル</a>
+  {% else %}
+  <a href="{{ url_for('withdraw.index') }}" class="btn btn-outline-danger btn-sm">退会する</a>
+  {% endif %}
+</div>
+
 {% endblock %}
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>

@@ -60,6 +60,11 @@ def init_db():
     if 'family_id' not in gip_cols:
         db.execute("ALTER TABLE grade_input_periods ADD COLUMN family_id INTEGER")
 
+    # families に scheduled_delete_at 列を追加（退会予約用）
+    fam_cols = [r[1] for r in db.execute("PRAGMA table_info(families)").fetchall()]
+    if 'scheduled_delete_at' not in fam_cols:
+        db.execute("ALTER TABLE families ADD COLUMN scheduled_delete_at DATETIME")
+
     # 設定プリセットテーブル
     db.execute('''
         CREATE TABLE IF NOT EXISTS config_presets (

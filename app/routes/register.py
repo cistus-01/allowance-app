@@ -37,24 +37,24 @@ def index():
 
         trial_ends = datetime.utcnow() + timedelta(days=30)
 
-        # ファミリー作成（owner_user_idは後で更新）
+        # 親ユーザーを先に作成（family_idは後で更新）
         db.execute(
-            '''INSERT INTO families (name, owner_user_id, subscription_status, trial_ends_at)
-               VALUES (?, 0, 'trial', ?)''',
-            (family_name, trial_ends.isoformat())
-        )
-        family_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
-
-        # 親ユーザー作成
-        db.execute(
-            '''INSERT INTO users (name, username, email, password_hash, role, family_id)
-               VALUES (?, ?, ?, ?, 'parent', ?)''',
-            (parent_name, username, email, generate_password_hash(password), family_id)
+            '''INSERT INTO users (name, username, email, password_hash, role)
+               VALUES (?, ?, ?, ?, 'parent')''',
+            (parent_name, username, email, generate_password_hash(password))
         )
         user_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
-        # ファミリーのowner_user_idを更新
-        db.execute('UPDATE families SET owner_user_id = ? WHERE id = ?', (user_id, family_id))
+        # ファミリー作成（有効なowner_user_idで）
+        db.execute(
+            '''INSERT INTO families (name, owner_user_id, subscription_status, trial_ends_at)
+               VALUES (?, ?, 'trial', ?)''',
+            (family_name, user_id, trial_ends.isoformat())
+        )
+        family_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # ユーザーのfamily_idを更新
+        db.execute('UPDATE users SET family_id = ? WHERE id = ?', (family_id, user_id))
         db.commit()
 
         row = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
