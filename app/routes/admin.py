@@ -344,86 +344,6 @@ def payslip():
                            prev_year=prev_year, prev_month=prev_month,
                            next_year=next_year, next_month=next_month)
 
-@bp.route('/summer_slip')
-@login_required
-@parent_required
-def summer_slip():
-    from ..salary import calc_monthly_salary
-    import datetime
-    db = get_db()
-    today = datetime.date.today()
-    start_date_str = request.args.get('start_date', '')
-    deadline_str = ''
-    is_past_deadline = False
-
-    if start_date_str:
-        try:
-            start = datetime.date.fromisoformat(start_date_str)
-            deadline = start + datetime.timedelta(days=14)
-            deadline_str = deadline.strftime('%Y年%m月%d日')
-            is_past_deadline = today > deadline
-        except ValueError:
-            start_date_str = ''
-
-    children = get_family_children(db)
-    slips = []
-
-    if start_date_str:
-        for child in children:
-            # 前月給料（夏休み開始日の前月）
-            start = datetime.date.fromisoformat(start_date_str)
-            prev_month = start.month - 1 if start.month > 1 else 12
-            prev_year  = start.year if start.month > 1 else start.year - 1
-            prev_salary = calc_monthly_salary(child['id'], prev_year, prev_month)
-            prev_month_label = f'{prev_year}年{prev_month}月'
-
-            # 既に付与済みか確認
-            given = db.execute('''
-                SELECT id, amount, record_date FROM finance_records
-                WHERE user_id=? AND category='summer_bonus'
-                  AND strftime('%Y', record_date)=?
-                ORDER BY record_date DESC LIMIT 1
-            ''', (child['id'], str(start.year))).fetchone()
-
-            slips.append({
-                'child': child,
-                'prev_total': prev_salary['total'],
-                'prev_month_label': prev_month_label,
-                'already_given': given is not None,
-                'given_id': given['id'] if given else None,
-                'given_amount': given['amount'] if given else 0,
-                'given_date': given['record_date'] if given else '',
-            })
-
-    return render_template('admin/summer_slip.html',
-                           slips=slips,
-                           start_date=start_date_str,
-                           deadline=deadline_str,
-                           is_past_deadline=is_past_deadline,
-                           today=today)
-
-@bp.route('/summer_bonus/give', methods=['POST'])
-@login_required
-@parent_required
-def give_summer_bonus():
-    import datetime
-    db = get_db()
-    user_id = request.form.get('user_id', type=int)
-    amount   = request.form.get('amount', type=int)
-    start_date_str = request.form.get('start_date', '')
-    if not verify_child_ownership(db, user_id):
-        flash('権限がありません。', 'danger')
-        return redirect(url_for('admin.summer_slip'))
-    if user_id and amount and amount > 0:
-        record_date = str(datetime.date.today())
-        db.execute('''
-            INSERT INTO finance_records (user_id, record_date, type, category, amount, note, created_by)
-            VALUES (?, ?, 'income', 'summer_bonus', ?, '夏休みボーナス（全宿題2週間以内完了）', ?)
-        ''', (user_id, record_date, amount, current_user.id))
-        db.commit()
-        flash('夏休みボーナスを付与しました！', 'success')
-    return redirect(url_for('admin.summer_slip', start_date=start_date_str))
-
 def _grade_pay_unit(db, user_id):
     """その子の学年給（= テストボーナス1科目の単価）を返す"""
     multiplier = db.execute('SELECT value FROM pay_rates WHERE key="grade_pay_multiplier"').fetchone()
@@ -454,7 +374,7 @@ def bonus():
             FROM finance_records f
             JOIN users u ON f.user_id = u.id
             WHERE f.user_id IN ({ph})
-              AND f.category IN ('test_bonus', 'bonus')
+              AND f.category IN ('test_bonus', 'bonus', 'summer_bonus')
             ORDER BY f.record_date DESC, u.name LIMIT 100
         ''', child_ids).fetchall()
 
@@ -536,9 +456,6 @@ def delete_bonus(record_id):
     db.execute('DELETE FROM finance_records WHERE id=?', (record_id,))
     db.commit()
     flash('削除しました。', 'success')
-    redirect_to = request.form.get('redirect_to', 'bonus')
-    if redirect_to == 'summer_slip':
-        return redirect(url_for('admin.summer_slip', start_date=request.form.get('start_date', '')))
     return redirect(url_for('admin.bonus'))
 
 
