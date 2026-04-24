@@ -54,17 +54,28 @@
 <div class="card mb-4">
   <div class="card-header">直近6ヶ月の給料推移</div>
   <div class="card-body">
-    <div class="d-flex align-items-end gap-2" style="height:140px;">
+    {# 金額ラベル行 #}
+    <div class="d-flex gap-2" style="height:22px;">
       {% for h in monthly_history %}
-      {% set bar_height = (h.total / max_total * 120) | int %}
-      <div class="d-flex flex-column align-items-center flex-fill">
-        <div class="small fw-bold mb-1" style="font-size:.75rem; color:{% if h.is_next %}#f8b500{% else %}var(--primary){% endif %}">
-          {% if h.total > 0 %}¥{{ '{:,}'.format(h.total) }}{% endif %}
-        </div>
-        <div style="width:100%; height:{{ bar_height }}px; background:{% if h.is_next %}#f8b500{% else %}var(--primary){% endif %}; border-radius:4px 4px 0 0; min-height:4px; opacity:{% if h.is_next %}0.8{% else %}1{% endif %};"></div>
-        <div class="small mt-1" style="font-size:.75rem; {% if h.is_next %}color:#f8b500; font-weight:bold;{% else %}color:#888;{% endif %}">
-          {{ h.label }}{% if h.is_next %}予定{% endif %}
-        </div>
+      <div class="flex-fill text-center fw-bold" style="font-size:.7rem; color:{% if h.is_next %}#f8b500{% else %}var(--primary){% endif %}; line-height:22px;">
+        {% if h.total > 0 %}¥{{ '{:,}'.format(h.total) }}{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {# バー行 #}
+    <div class="d-flex align-items-end gap-2" style="height:110px;">
+      {% for h in monthly_history %}
+      {% set bar_height = [[(h.total / max_total * 108) | int, 4] | max, 108] | min %}
+      <div class="flex-fill">
+        <div style="width:100%; height:{{ bar_height }}px; background:{% if h.is_next %}#f8b500{% else %}var(--primary){% endif %}; border-radius:4px 4px 0 0; opacity:{% if h.is_next %}0.85{% else %}1{% endif %};"></div>
+      </div>
+      {% endfor %}
+    </div>
+    {# 月ラベル行 #}
+    <div class="d-flex gap-2 mt-1">
+      {% for h in monthly_history %}
+      <div class="flex-fill text-center" style="font-size:.72rem; {% if h.is_next %}color:#f8b500; font-weight:bold;{% else %}color:#888;{% endif %}">
+        {{ h.label }}{% if h.is_next %}<br><span style="font-size:.65rem;">予定</span>{% endif %}
       </div>
       {% endfor %}
     </div>
