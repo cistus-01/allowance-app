@@ -48,7 +48,15 @@
       </div>
       <div>
         {% if slip.already_given %}
-        <span class="badge bg-success fs-6">✅ 付与済み ¥{{ '{:,}'.format(slip.given_amount) }}</span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-success fs-6">✅ 付与済み ¥{{ '{:,}'.format(slip.given_amount) }}</span>
+          <form method="post" action="{{ url_for('admin.delete_bonus', record_id=slip.given_id) }}"
+                onsubmit="return confirm('{{ slip.child.name }}の夏休みボーナスを取り消しますか？')">
+            <input type="hidden" name="redirect_to" value="summer_slip">
+            <input type="hidden" name="start_date" value="{{ start_date }}">
+            <button class="btn btn-sm btn-outline-danger">取り消し</button>
+          </form>
+        </div>
         {% else %}
         <form method="post" action="{{ url_for('admin.give_summer_bonus') }}"
               onsubmit="return confirm('{{ slip.child.name }}に夏休みボーナス ¥{{ '{:,}'.format(slip.prev_total) }} を付与しますか？')">

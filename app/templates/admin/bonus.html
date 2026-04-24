@@ -56,25 +56,29 @@
   <div class="card-header">ボーナス履歴</div>
   <div class="card-body">
     {% if bonus_records %}
-    {% set ns = namespace(prev_date='', prev_child='') %}
-    {% for rec in bonus_records %}
-    {% set key = rec.record_date ~ rec.child_name ~ (rec.note or '') %}
-    {% if rec.record_date != ns.prev_date or rec.child_name != ns.prev_child %}
-    {% if not loop.first %}</ul>{% endif %}
-    <div class="mb-1 mt-3">
-      <span class="fw-bold">{{ rec.child_name }}</span>
-      <span class="text-muted small ms-2">{{ rec.record_date }}</span>
-      {% if rec.note %}<span class="badge bg-light text-dark ms-1">{{ rec.note }}</span>{% endif %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead><tr><th>日付</th><th>対象</th><th>科目</th><th>金額</th><th>メモ</th><th></th></tr></thead>
+        <tbody>
+        {% for rec in bonus_records %}
+        <tr>
+          <td class="text-muted small">{{ rec.record_date }}</td>
+          <td class="fw-bold">{{ rec.child_name }}</td>
+          <td><span class="badge bg-warning text-dark">{{ rec.item }}</span></td>
+          <td>+¥{{ rec.amount }}</td>
+          <td class="text-muted small">{{ rec.note or '' }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.delete_bonus', record_id=rec.id) }}"
+                  onsubmit="return confirm('{{ rec.child_name }}の{{ rec.item }}ボーナスを削除しますか？')">
+              <input type="hidden" name="redirect_to" value="bonus">
+              <button class="btn btn-sm btn-outline-danger">削除</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
     </div>
-    <ul class="list-inline mb-0">
-    {% set ns.prev_date = rec.record_date %}
-    {% set ns.prev_child = rec.child_name %}
-    {% endif %}
-    <li class="list-inline-item">
-      <span class="badge bg-warning text-dark">{{ rec.item }} +¥{{ rec.amount }}</span>
-    </li>
-    {% endfor %}
-    </ul>
     {% else %}
     <p class="text-muted mb-0">まだ記録がありません。</p>
     {% endif %}

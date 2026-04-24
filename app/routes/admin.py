@@ -357,7 +357,7 @@ def summer_slip():
 
             # 既に付与済みか確認
             given = db.execute('''
-                SELECT amount, record_date FROM finance_records
+                SELECT id, amount, record_date FROM finance_records
                 WHERE user_id=? AND category='summer_bonus'
                   AND strftime('%Y', record_date)=?
                 ORDER BY record_date DESC LIMIT 1
@@ -368,6 +368,7 @@ def summer_slip():
                 'prev_total': prev_salary['total'],
                 'prev_month_label': prev_month_label,
                 'already_given': given is not None,
+                'given_id': given['id'] if given else None,
                 'given_amount': given['amount'] if given else 0,
                 'given_date': given['record_date'] if given else '',
             })
@@ -416,7 +417,7 @@ def bonus():
     if child_ids:
         placeholders = ','.join('?' * len(child_ids))
         rows = db.execute(f'''
-            SELECT f.record_date, f.item, f.amount, f.note, u.name as child_name, u.id as child_id
+            SELECT f.id, f.record_date, f.item, f.amount, f.note, u.name as child_name, u.id as child_id
             FROM finance_records f
             JOIN users u ON f.user_id = u.id
             WHERE f.user_id IN ({placeholders}) AND f.category = 'test_bonus'
@@ -450,4 +451,24 @@ def give_bonus():
             ''', (user_id, record_date, subject, unit_price, note or 'テスト満点ボーナス', current_user.id))
         db.commit()
         flash(f'テスト満点ボーナス {len(subject_names)}科目 ¥{unit_price * len(subject_names):,} を記録しました。', 'success')
+    return redirect(url_for('admin.bonus'))
+
+@bp.route('/bonus/delete/<int:record_id>', methods=['POST'])
+@login_required
+@parent_required
+def delete_bonus(record_id):
+    db = get_db()
+    rec = db.execute('''
+        SELECT user_id FROM finance_records
+        WHERE id=? AND category IN ('test_bonus', 'summer_bonus')
+    ''', (record_id,)).fetchone()
+    if not rec or not verify_child_ownership(db, rec['user_id']):
+        flash('権限がありません。', 'danger')
+        return redirect(url_for('admin.bonus'))
+    db.execute('DELETE FROM finance_records WHERE id=?', (record_id,))
+    db.commit()
+    flash('削除しました。', 'success')
+    redirect_to = request.form.get('redirect_to', 'bonus')
+    if redirect_to == 'summer_slip':
+        return redirect(url_for('admin.summer_slip', start_date=request.form.get('start_date', '')))
     return redirect(url_for('admin.bonus'))
