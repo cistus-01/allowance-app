@@ -77,15 +77,28 @@
       <i class="bi bi-list text-white fs-4"></i>
     </button>
     <div class="collapse navbar-collapse" id="navMenu">
-      <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2 mt-2 mt-lg-0">
-        <li class="nav-item">
-          <a href="{{ url_for('goals.index') }}" class="nav-link">🎯 ほしいもの</a>
-        </li>
+      {% set path = request.path %}
+      <ul class="navbar-nav me-auto align-items-lg-center gap-lg-1 mt-2 mt-lg-0">
         {% if current_user.is_parent %}
-        <li class="nav-item">
-          <a href="{{ url_for('billing.index') }}" class="nav-link">
-            <i class="bi bi-credit-card"></i> プラン
-          </a>
+        <li class="nav-item"><a href="{{ url_for('home.index') }}" class="nav-link {% if path == '/' %}fw-bold{% endif %}"><i class="bi bi-house-fill"></i> ホーム</a></li>
+        <li class="nav-item"><a href="{{ url_for('chores.index') }}" class="nav-link {% if '/chores' in path %}fw-bold{% endif %}"><i class="bi bi-check2-square"></i> 家事</a></li>
+        <li class="nav-item"><a href="{{ url_for('grades.index') }}" class="nav-link {% if '/grades' in path %}fw-bold{% endif %}"><i class="bi bi-star-fill"></i> 成績</a></li>
+        <li class="nav-item"><a href="{{ url_for('admin.bonus') }}" class="nav-link {% if '/bonus' in path %}fw-bold{% endif %}"><i class="bi bi-trophy"></i> テストボーナス</a></li>
+        <li class="nav-item"><a href="{{ url_for('finance.index') }}" class="nav-link {% if '/finance' in path %}fw-bold{% endif %}"><i class="bi bi-wallet2"></i> 収支</a></li>
+        <li class="nav-item"><a href="{{ url_for('compare.monthly') }}" class="nav-link {% if '/compare' in path %}fw-bold{% endif %}"><i class="bi bi-arrow-left-right"></i> 比較</a></li>
+        <li class="nav-item"><a href="{{ url_for('admin.payslip') }}" class="nav-link {% if '/payslip' in path %}fw-bold{% endif %}"><i class="bi bi-printer"></i> 給料明細</a></li>
+        {% else %}
+        <li class="nav-item"><a href="{{ url_for('home.index') }}" class="nav-link {% if path == '/' %}fw-bold{% endif %}"><i class="bi bi-house-fill"></i> ホーム</a></li>
+        <li class="nav-item"><a href="{{ url_for('chores.index') }}" class="nav-link {% if '/chores' in path %}fw-bold{% endif %}"><i class="bi bi-check2-square"></i> 家事</a></li>
+        <li class="nav-item"><a href="{{ url_for('grades.index') }}" class="nav-link {% if '/grades' in path %}fw-bold{% endif %}"><i class="bi bi-star-fill"></i> 成績</a></li>
+        <li class="nav-item"><a href="{{ url_for('finance.index') }}" class="nav-link {% if '/finance' in path %}fw-bold{% endif %}"><i class="bi bi-wallet2"></i> 収支</a></li>
+        <li class="nav-item"><a href="{{ url_for('goals.index') }}" class="nav-link {% if '/goals' in path %}fw-bold{% endif %}">🎯 ほしいもの</a></li>
+        {% endif %}
+      </ul>
+      <ul class="navbar-nav align-items-lg-center gap-lg-2 mt-2 mt-lg-0">
+        {% if current_user.is_parent %}
+        <li class="nav-item d-none d-lg-block">
+          <a href="{{ url_for('billing.index') }}" class="nav-link"><i class="bi bi-credit-card"></i> プラン</a>
         </li>
         {% endif %}
         <li class="nav-item">
