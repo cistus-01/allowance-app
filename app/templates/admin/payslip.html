@@ -110,15 +110,8 @@
           <td>¥{{ slip.base_pay }}</td>
           <td>¥{{ '{:,}'.format(slip.grade_pay) }}</td>
           <td>¥{{ '{:,}'.format(slip.academic_pay) }}</td>
-          <td class="{% if slip.bonus_pay > 0 %}amount{% endif %}">
-            {% if slip.bonus_pay > 0 %}
-              ¥{{ '{:,}'.format(slip.bonus_pay) }}
-              <div style="font-size:.7rem; color:#888; font-weight:normal;">
-                {{ slip.bonus_subjects | join('・') }}
-              </div>
-            {% else %}
-              —
-            {% endif %}
+          <td>
+            {% if slip.bonus_pay > 0 %}¥{{ '{:,}'.format(slip.bonus_pay) }}{% else %}—{% endif %}
           </td>
         </tr>
       </tbody>
@@ -148,6 +141,15 @@
         </tr>
       </tbody>
     </table>
+
+    {# テスト賞与内訳（ボーナスある場合のみ） #}
+    {% if slip.bonus_pay > 0 %}
+    <div style="background:#fffde7; border:1px solid #f0cc50; border-radius:4px; padding:3px 10px; margin-top:4px; font-size:.85rem;">
+      <span class="fw-bold">テスト賞与内訳</span>
+      <span class="ms-2">{{ slip.bonus_subjects | join('・') }}</span>
+      <span class="ms-2 fw-bold">¥{{ '{:,}'.format(slip.bonus_pay) }}</span>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endfor %}
