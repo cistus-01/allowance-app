@@ -28,6 +28,8 @@ def index():
                 return redirect(url_for('billing.index'))
     db = get_db()
     today = date.today()
+    next_month = today.month + 1 if today.month < 12 else 1
+    next_year  = today.year if today.month < 12 else today.year + 1
 
     if current_user.is_parent:
         children = get_family_children(db)
@@ -42,7 +44,7 @@ def index():
             if row:
                 from ..models import User
                 selected_child = User(row)
-                salary = calc_monthly_salary(selected_id, today.year, today.month)
+                salary = calc_monthly_salary(selected_id, next_year, next_month)
                 balance = calc_balance(selected_id)
 
         # 今日の全子供の家事チェック数（ホーム一覧用）
@@ -62,9 +64,10 @@ def index():
                                salary=salary,
                                balance=balance,
                                today=today,
+                               next_month=next_month,
                                chore_counts_today=chore_counts_today)
     else:
-        salary = calc_monthly_salary(current_user.id, today.year, today.month)
+        salary = calc_monthly_salary(current_user.id, next_year, next_month)
         balance = calc_balance(current_user.id)
         top_goal = db.execute(
             'SELECT * FROM goals WHERE user_id=? AND is_achieved=0 ORDER BY created_at ASC LIMIT 1',
@@ -101,6 +104,7 @@ def index():
                                salary=salary,
                                balance=balance,
                                today=today,
+                               next_month=next_month,
                                top_goal=top_goal,
                                chore_types=chore_types,
                                today_checks=today_checks,
