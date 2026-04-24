@@ -321,6 +321,16 @@ def payslip():
                 pay += ct['unit_price'] // shared_cnt
             chore_detail.append({'name': ct['name'], 'count': cnt, 'pay': pay})
 
+        # ボーナス内訳（前月分・金額付き）
+        bonus_detail = db.execute('''
+            SELECT item, SUM(amount) as total, category
+            FROM finance_records
+            WHERE user_id=? AND category IN ('test_bonus', 'bonus')
+              AND strftime('%Y-%m', record_date)=?
+            GROUP BY item, category
+            ORDER BY category, item
+        ''', (child['id'], prev_month_str)).fetchall()
+
         slips.append({
             'user': child,
             'base_pay':     salary['base_pay'],
@@ -329,8 +339,7 @@ def payslip():
             'chore_detail': chore_detail,
             'chore_total':  salary['chore_pay'],
             'bonus_pay':    salary['bonus_pay'],
-            'bonus_cnt':    salary['bonus_cnt'],
-            'bonus_subjects': salary['bonus_subjects'],
+            'bonus_detail': bonus_detail,
             'total':        salary['total'],
         })
 

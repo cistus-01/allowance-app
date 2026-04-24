@@ -99,7 +99,7 @@
           <th style="width:15%">基本給</th>
           <th style="width:18%">学年給</th>
           <th style="width:18%">成績給</th>
-          <th style="width:20%">テスト賞与</th>
+          <th style="width:20%">ボーナス</th>
         </tr>
       </thead>
       <tbody>
@@ -138,11 +138,13 @@
       </tbody>
     </table>
 
-    {# テスト賞与内訳（常に表示） #}
+    {# ボーナス内訳 #}
     <div style="background:#fffde7; border:1px solid #f0cc50; border-radius:4px; padding:3px 10px; margin-top:4px; font-size:.85rem;">
-      <span class="fw-bold">テスト賞与内訳</span>
-      {% if slip.bonus_pay > 0 %}
-      <span class="ms-2">{{ slip.bonus_subjects | join('・') }}</span>
+      <span class="fw-bold">ボーナス内訳</span>
+      {% if slip.bonus_detail %}
+      <span class="ms-2">
+        {% for b in slip.bonus_detail %}{{ b.item }}（¥{{ '{:,}'.format(b.total) }}）{% if not loop.last %}・{% endif %}{% endfor %}
+      </span>
       {% else %}
       <span class="ms-2 text-muted">なし</span>
       {% endif %}
