@@ -58,19 +58,21 @@
       {% for h in monthly_history %}
       {% set bar_height = (h.total / max_total * 120) | int %}
       <div class="d-flex flex-column align-items-center flex-fill">
-        <div class="small fw-bold mb-1" style="font-size:.75rem; color:var(--primary)">
+        <div class="small fw-bold mb-1" style="font-size:.75rem; color:{% if h.is_next %}#f8b500{% else %}var(--primary){% endif %}">
           {% if h.total > 0 %}¥{{ '{:,}'.format(h.total) }}{% endif %}
         </div>
-        <div style="width:100%; height:{{ bar_height }}px; background:var(--primary); border-radius:4px 4px 0 0; min-height:4px;"></div>
-        <div class="small text-muted mt-1" style="font-size:.75rem">{{ h.label }}</div>
+        <div style="width:100%; height:{{ bar_height }}px; background:{% if h.is_next %}#f8b500{% else %}var(--primary){% endif %}; border-radius:4px 4px 0 0; min-height:4px; opacity:{% if h.is_next %}0.8{% else %}1{% endif %};"></div>
+        <div class="small mt-1" style="font-size:.75rem; {% if h.is_next %}color:#f8b500; font-weight:bold;{% else %}color:#888;{% endif %}">
+          {{ h.label }}{% if h.is_next %}予定{% endif %}
+        </div>
       </div>
       {% endfor %}
     </div>
     {# 凡例 #}
-    <div class="d-flex gap-3 mt-3 flex-wrap">
-      {% set last = monthly_history[-1] %}
-      <span class="small text-muted"><span class="badge bg-secondary">今月予定</span> ¥{{ '{:,}'.format(last.total) }}</span>
-      <span class="small text-muted">うち家事 ¥{{ '{:,}'.format(last.chore_pay) }}　成績 ¥{{ '{:,}'.format(last.academic_pay) }}　テストボーナス ¥{{ '{:,}'.format(last.bonus_pay) }}</span>
+    {% set next_bar = monthly_history[-1] %}
+    <div class="d-flex gap-3 mt-3 flex-wrap align-items-center">
+      <span class="small"><span class="badge" style="background:#f8b500;">来月予定</span> ¥{{ '{:,}'.format(next_bar.total) }}</span>
+      <span class="small text-muted">うち家事 ¥{{ '{:,}'.format(next_bar.chore_pay) }}　成績 ¥{{ '{:,}'.format(next_bar.academic_pay) }}　ボーナス ¥{{ '{:,}'.format(next_bar.bonus_pay) }}</span>
     </div>
   </div>
 </div>

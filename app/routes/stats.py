@@ -84,17 +84,21 @@ def index():
                 'diff': this_cnt - prev_cnt,
             })
 
-    # 直近6ヶ月の給料推移
+    # 直近5ヶ月の実績＋来月予定
+    next_m = today.month + 1 if today.month < 12 else 1
+    next_y = today.year if today.month < 12 else today.year + 1
     monthly_history = []
-    y, m = today.year, today.month
-    for _ in range(6):
+    y, m = next_y, next_m
+    for i in range(6):
         sal = calc_monthly_salary(target_id, y, m)
+        is_next = (i == 0)
         monthly_history.append({
             'label': f'{m}月',
             'total': sal['total'],
             'chore_pay': sal['chore_pay'],
             'academic_pay': sal.get('academic_pay', 0),
             'bonus_pay': sal.get('bonus_pay', 0),
+            'is_next': is_next,
         })
         m -= 1
         if m == 0:
