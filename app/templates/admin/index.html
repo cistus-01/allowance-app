@@ -218,9 +218,22 @@
   <div class="card-body">
     <p class="text-muted small mb-3">現在の「単価・教科・家事」の設定を3つまで保存・呼び出しできます。</p>
     <div class="row g-3">
+      {# デフォルトスロット #}
+      <div class="col-md-3">
+        <div class="border rounded p-3 h-100" style="border-color:#dee2e6 !important;">
+          <div class="fw-bold mb-2"><i class="bi bi-house me-1"></i>デフォルト</div>
+          <div class="text-muted small mb-3">アプリ初期値<br>（単価・国語算数理科…・掃除洗濯…）</div>
+          <form method="post" action="{{ url_for('admin.load_default_preset') }}"
+                onsubmit="return confirm('デフォルト設定に戻します。現在の設定は上書きされます。よろしいですか？')">
+            <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>デフォルトに戻す
+            </button>
+          </form>
+        </div>
+      </div>
       {% for slot in [1, 2, 3] %}
       {% set preset = presets.get(slot) %}
-      <div class="col-md-4">
+      <div class="col-md-3">
         <div class="border rounded p-3 h-100">
           <div class="fw-bold mb-2">設定{{ slot }}</div>
           {% if preset %}

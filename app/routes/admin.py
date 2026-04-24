@@ -597,3 +597,64 @@ def load_preset(slot):
     db.commit()
     flash(f'「{preset["label"]}」を読み込みました。', 'success')
     return redirect(url_for('admin.index') + '#presets')
+
+
+_DEFAULT_PAY_RATES = {
+    'base_pay': 100,
+    'grade_pay_multiplier': 50,
+    'eval_excellent': 150,
+    'eval_good': 20,
+    'eval_poor': 0,
+}
+_DEFAULT_SUBJECTS = [
+    {'name': '国語', 'sort_order': 1}, {'name': '算数', 'sort_order': 2},
+    {'name': '理科', 'sort_order': 3}, {'name': '社会', 'sort_order': 4},
+    {'name': '英語', 'sort_order': 5}, {'name': '音楽', 'sort_order': 6},
+    {'name': '体育', 'sort_order': 7}, {'name': '図工', 'sort_order': 8},
+    {'name': '道徳', 'sort_order': 9},
+]
+_DEFAULT_CHORE_TYPES = [
+    {'name': '掃除', 'unit_price': 30, 'sort_order': 1},
+    {'name': '洗濯', 'unit_price': 10, 'sort_order': 2},
+    {'name': '干す',  'unit_price': 30, 'sort_order': 3},
+    {'name': '洗い物', 'unit_price': 20, 'sort_order': 4},
+    {'name': 'しまう', 'unit_price': 10, 'sort_order': 5},
+]
+
+
+@bp.route('/preset/default/load', methods=['POST'])
+@login_required
+@parent_required
+def load_default_preset():
+    db = get_db()
+
+    for key, value in _DEFAULT_PAY_RATES.items():
+        db.execute('UPDATE pay_rates SET value=? WHERE key=?', (value, key))
+
+    db.execute('UPDATE subjects SET is_active=0')
+    for s in _DEFAULT_SUBJECTS:
+        existing = db.execute('SELECT id FROM subjects WHERE name=?', (s['name'],)).fetchone()
+        if existing:
+            db.execute('UPDATE subjects SET is_active=1, sort_order=? WHERE id=?',
+                       (s['sort_order'], existing['id']))
+        else:
+            db.execute('INSERT INTO subjects (name, sort_order, is_active) VALUES (?, ?, 1)',
+                       (s['name'], s['sort_order']))
+            new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+            for grade in range(1, 7):
+                db.execute('INSERT OR IGNORE INTO grade_subjects (grade, subject_id) VALUES (?, ?)',
+                           (grade, new_id))
+
+    db.execute('UPDATE chore_types SET is_active=0')
+    for ct in _DEFAULT_CHORE_TYPES:
+        existing = db.execute('SELECT id FROM chore_types WHERE name=?', (ct['name'],)).fetchone()
+        if existing:
+            db.execute('UPDATE chore_types SET is_active=1, unit_price=?, sort_order=? WHERE id=?',
+                       (ct['unit_price'], ct['sort_order'], existing['id']))
+        else:
+            db.execute('INSERT INTO chore_types (name, unit_price, sort_order, is_active) VALUES (?, ?, ?, 1)',
+                       (ct['name'], ct['unit_price'], ct['sort_order']))
+
+    db.commit()
+    flash('デフォルト設定に戻しました。', 'success')
+    return redirect(url_for('admin.index') + '#presets')
