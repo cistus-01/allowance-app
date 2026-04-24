@@ -76,7 +76,7 @@ def index():
     record_map   = build_record_map(db, target_id, month_str)
     chore_summary = build_chore_summary(db, target_id, month_str, chore_types)
     chore_pay    = calc_chore_pay(target_id, year, month)
-    cal          = calendar.monthcalendar(year, month)
+    cal          = calendar.Calendar(firstweekday=6).monthdayscalendar(year, month)
 
     children = None
     if current_user.is_parent:

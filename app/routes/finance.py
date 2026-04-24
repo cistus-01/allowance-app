@@ -47,7 +47,7 @@ def index():
     day_map = {str(r['record_date'])[:10]: r for r in day_records}
 
     # カレンダー
-    cal = calendar.monthcalendar(year, month)
+    cal = calendar.Calendar(firstweekday=6).monthdayscalendar(year, month)
 
     # 月次サマリー
     summary = get_monthly_finance_summary(target_id, year, month)
