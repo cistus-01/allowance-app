@@ -74,16 +74,8 @@ def index():
             (current_user.id,)
         ).fetchone()
 
-        # 今日の家事チェック状況
+        # 全家事の日割り最大報酬（days_to_goal 計算用）
         chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
-        today_str = today.isoformat()
-        today_checks = {}
-        for ct in chore_types:
-            row = db.execute(
-                'SELECT id FROM chore_records WHERE user_id=? AND chore_type_id=? AND record_date=?',
-                (current_user.id, ct['id'], today_str)
-            ).fetchone()
-            today_checks[str(ct['id'])] = row is not None
 
         # 目標達成まであと何日？（全家事毎日やった場合の最短日数）
         days_to_goal = None
@@ -106,6 +98,4 @@ def index():
                                today=today,
                                next_month=next_month,
                                top_goal=top_goal,
-                               chore_types=chore_types,
-                               today_checks=today_checks,
                                days_to_goal=days_to_goal)

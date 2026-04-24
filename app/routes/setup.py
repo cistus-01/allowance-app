@@ -41,7 +41,7 @@ def run():
     hanako_id = db.execute("SELECT id FROM users WHERE username='hanako'").fetchone()['id']
 
     for k, v, l in [('base_pay',100,'基本給'),('grade_pay_multiplier',50,'学年給'),
-                    ('eval_excellent',150,'成績◎'),('eval_good',20,'成績〇'),('eval_poor',0,'成績△')]:
+                    ('eval_excellent',50,'成績◎'),('eval_good',15,'成績〇'),('eval_poor',0,'成績△')]:
         db.execute("INSERT OR IGNORE INTO pay_rates (key,value,label) VALUES (?,?,?)", (k,v,l))
 
     for name, price, order in [('お皿洗い',50,1),('掃除機がけ',80,2),
@@ -75,7 +75,7 @@ def run():
 
     for days_ago, uid in [(15,taro_id),(10,taro_id),(5,hanako_id)]:
         d = (today - timedelta(days=days_ago)).isoformat()
-        db.execute("INSERT INTO finance_records (user_id,record_date,type,category,amount,created_by) VALUES (?,?,'income','おこづかい',1000,?)", (uid,d,parent_id))
+        db.execute("INSERT INTO finance_records (user_id,record_date,type,category,amount,created_by) VALUES (?,?,'income','給料',1000,?)", (uid,d,parent_id))
         db.execute("INSERT INTO finance_records (user_id,record_date,type,category,amount,created_by) VALUES (?,?,'expense','お菓子',150,?)", (uid,d,parent_id))
 
     db.execute("INSERT INTO goals (user_id,name,target_amount,emoji) VALUES (?,?,?,?)", (taro_id,'ポケモンカードパック',3000,'🎮'))

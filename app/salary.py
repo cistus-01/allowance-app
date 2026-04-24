@@ -72,8 +72,8 @@ def calc_academic_pay_for_month(user_id, year, month):
     prev_year, prev_term = get_prev_term(year, current_term)
 
     eval_map = {
-        '◎': rates.get('eval_excellent', 150),
-        '〇': rates.get('eval_good', 20),
+        '◎': rates.get('eval_excellent', 50),
+        '〇': rates.get('eval_good', 15),
         '△': rates.get('eval_poor', 0),
     }
 
@@ -99,8 +99,8 @@ def calc_academic_pay(user_id, year):
         return 0, 0, 0
     grade_pay = user['grade'] * rates.get('grade_pay_multiplier', 50)
     eval_map = {
-        '◎': rates.get('eval_excellent', 150),
-        '〇': rates.get('eval_good', 20),
+        '◎': rates.get('eval_excellent', 50),
+        '〇': rates.get('eval_good', 15),
         '△': rates.get('eval_poor', 0),
     }
     records = db.execute('''

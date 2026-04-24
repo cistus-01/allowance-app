@@ -20,8 +20,8 @@ def get_target_user_id(db):
 def calc_display_academic_pay(grade_records, rates):
     """表示中の成績レコードから学業給を計算"""
     eval_map = {
-        '◎': rates.get('eval_excellent', 150),
-        '〇': rates.get('eval_good', 20),
+        '◎': rates.get('eval_excellent', 50),
+        '〇': rates.get('eval_good', 15),
         '△': rates.get('eval_poor', 0),
     }
     total = 0
@@ -47,8 +47,10 @@ def index():
 
     target_user = db.execute('SELECT * FROM users WHERE id=?', (target_id,)).fetchone()
 
+    family_id = current_user.family_id
     period = db.execute(
-        'SELECT is_open FROM grade_input_periods WHERE year=? AND term=?', (year, term)
+        'SELECT is_open FROM grade_input_periods WHERE year=? AND term=? AND (family_id=? OR family_id IS NULL)',
+        (year, term, family_id)
     ).fetchone()
     is_open = period['is_open'] if period else False
 
@@ -117,7 +119,6 @@ def save_ajax():
     eval_val   = data.get('eval_val')    # '◎','〇','△' or None
 
     # 権限チェック
-    db = get_db()
     if current_user.is_parent and target_id and not verify_child_ownership(db, int(target_id)):
         return jsonify({'error': '権限がありません'}), 403
     if current_user.is_child:
@@ -162,8 +163,8 @@ def save_ajax():
     ).fetchall()
     rates = get_pay_rates()
     eval_map = {
-        '◎': rates.get('eval_excellent', 150),
-        '〇': rates.get('eval_good', 20),
+        '◎': rates.get('eval_excellent', 50),
+        '〇': rates.get('eval_good', 15),
         '△': 0,
     }
     academic_pay = 0
@@ -201,19 +202,21 @@ def toggle_period():
     term = request.form.get('term', type=int)
     child_id = request.form.get('child_id', type=int)
 
+    family_id = current_user.family_id
     existing = db.execute(
-        'SELECT id, is_open FROM grade_input_periods WHERE year=? AND term=?', (year, term)
+        'SELECT id, is_open FROM grade_input_periods WHERE year=? AND term=? AND family_id=?',
+        (year, term, family_id)
     ).fetchone()
     if existing:
         new_state = 0 if existing['is_open'] else 1
         db.execute(
-            'UPDATE grade_input_periods SET is_open=? WHERE year=? AND term=?',
-            (new_state, year, term)
+            'UPDATE grade_input_periods SET is_open=? WHERE year=? AND term=? AND family_id=?',
+            (new_state, year, term, family_id)
         )
     else:
         db.execute(
-            'INSERT INTO grade_input_periods (year, term, is_open, opened_at) VALUES (?, ?, 1, CURRENT_TIMESTAMP)',
-            (year, term)
+            'INSERT INTO grade_input_periods (year, term, is_open, opened_at, family_id) VALUES (?, ?, 1, CURRENT_TIMESTAMP, ?)',
+            (year, term, family_id)
         )
     db.commit()
     return redirect(url_for('grades.index', year=year, term=term, child_id=child_id))

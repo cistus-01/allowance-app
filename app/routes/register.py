@@ -58,7 +58,7 @@ def index():
         db.commit()
 
         row = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
-        login_user(User(row))
+        login_user(User(row), remember=True)
 
         flash(f'ご登録ありがとうございます！30日間の無料トライアルが始まりました。', 'success')
         return redirect(url_for('onboarding.index'))

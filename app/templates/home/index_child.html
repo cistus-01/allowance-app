@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}ホーム{% endblock %}
+{% block title %}こどもの給与帳{% endblock %}
 {% block content %}
 <h2 class="mb-1">{{ current_user.name }}のページ</h2>
 <p class="text-muted mb-3">{{ today.year }}年{{ today.month }}月</p>
@@ -48,25 +48,6 @@
 </a>
 {% endif %}
 
-{% if chore_types %}
-<div class="mb-3">
-  <div class="d-flex align-items-center justify-content-between mb-2">
-    <div class="fw-bold">今日の家事</div>
-    <a href="{{ url_for('chores.index') }}" class="text-muted small">もっと見る →</a>
-  </div>
-  <div class="d-flex flex-wrap gap-2" id="quick-chores">
-    {% for ct in chore_types %}
-    <button type="button"
-      class="btn btn-sm {% if today_checks[ct.id | string] %}btn-success{% else %}btn-outline-secondary{% endif %} quick-chore-btn"
-      data-chore-id="{{ ct.id }}"
-      data-date="{{ today.isoformat() }}"
-      data-user-id="{{ current_user.id }}">
-      {% if today_checks[ct.id | string] %}✓ {% endif %}{{ ct.name }}
-    </button>
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
 
 <div class="row g-3">
   <div class="col-6">
@@ -105,42 +86,6 @@
       </div>
     </a>
   </div>
-  <div class="col-12">
-    <a href="{{ url_for('admin.rates') }}" class="text-decoration-none">
-      <div class="card text-center p-2" style="cursor:pointer;">
-        <i class="bi bi-table fs-3 text-secondary me-2 d-inline"></i>
-        <span class="fw-bold">単価表を見る</span>
-      </div>
-    </a>
-  </div>
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-document.querySelectorAll('.quick-chore-btn').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const choreId = btn.dataset.choreId;
-    const date    = btn.dataset.date;
-    const userId  = btn.dataset.userId;
-    btn.disabled = true;
-    try {
-      const res = await fetch('/chores/toggle', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chore_type_id: choreId, date: date, user_id: userId })
-      });
-      const data = await res.json();
-      if (data.checked) {
-        btn.classList.replace('btn-outline-secondary', 'btn-success');
-        btn.textContent = '✓ ' + btn.textContent.replace(/^✓\s*/, '');
-      } else {
-        btn.classList.replace('btn-success', 'btn-outline-secondary');
-        btn.textContent = btn.textContent.replace(/^✓\s*/, '');
-      }
-    } catch(e) { console.error(e); }
-    btn.disabled = false;
-  });
-});
-</script>
-{% endblock %}

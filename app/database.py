@@ -50,6 +50,11 @@ def init_db():
         )
     ''')
 
+    # grade_input_periods に family_id 列を追加（既存DB対応）
+    gip_cols = [r[1] for r in db.execute("PRAGMA table_info(grade_input_periods)").fetchall()]
+    if 'family_id' not in gip_cols:
+        db.execute("ALTER TABLE grade_input_periods ADD COLUMN family_id INTEGER")
+
     # 設定プリセットテーブル
     db.execute('''
         CREATE TABLE IF NOT EXISTS config_presets (
@@ -101,8 +106,8 @@ def _seed_if_empty(db):
             "INSERT OR IGNORE INTO pay_rates (key, value, label) VALUES (?, ?, ?)",
             [('base_pay', 100, '基本給'),
              ('grade_pay_multiplier', 50, '学年給（学年×）'),
-             ('eval_excellent', 150, '成績給◎'),
-             ('eval_good', 20, '成績給〇'),
+             ('eval_excellent', 50, '成績給◎'),
+             ('eval_good', 15, '成績給〇'),
              ('eval_poor', 0, '成績給△'),
              ]
         )

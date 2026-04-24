@@ -7,8 +7,12 @@ from .models import User
 login_manager = LoginManager()
 
 def create_app():
+    from datetime import timedelta
     app = Flask(__name__)
     app.secret_key = os.environ.get('SECRET_KEY', 'allowance-app-secret-2026')
+    app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
+    app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+    app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
 
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'

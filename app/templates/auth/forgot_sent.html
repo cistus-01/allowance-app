@@ -1,13 +1,20 @@
 {% extends 'base.html' %}
-{% block title %}リセットリンクを発行しました{% endblock %}
+{% block title %}パスワードリセット{% endblock %}
 {% block content %}
 <div class="row justify-content-center mt-5">
   <div class="col-md-6 col-sm-9">
     <div class="card">
       <div class="card-header text-center py-3">
-        <i class="bi bi-check-circle fs-3 me-2"></i>リセットリンクを発行しました
+        <i class="bi bi-check-circle fs-3 me-2"></i>パスワードリセット
       </div>
       <div class="card-body p-4 text-center">
+        {% if email_sent %}
+        <p class="mb-3">{{ name }} さんのメールアドレス（{{ email }}）にリセットリンクを送信しました。</p>
+        <div class="alert alert-info text-start">
+          <strong>メールをご確認ください。</strong><br>
+          リンクの有効期限は1時間です。メールが届かない場合は迷惑メールフォルダもご確認ください。
+        </div>
+        {% else %}
         <p class="mb-3">{{ name }} さんのパスワードリセットリンクです。</p>
         <div class="alert alert-warning text-start">
           <strong>⚠️ このリンクは1時間で無効になります。</strong><br>
@@ -16,7 +23,8 @@
         <a href="{{ reset_url }}" class="btn btn-primary btn-lg w-100 mb-3">
           パスワードをリセットする
         </a>
-        <p class="text-muted small">
+        {% endif %}
+        <p class="text-muted small mt-3">
           このページを閉じた場合は、もう一度「パスワードをお忘れの方」から手続きを行ってください。
         </p>
       </div>

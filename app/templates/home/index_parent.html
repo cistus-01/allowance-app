@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}ホーム（親）{% endblock %}
+{% block title %}こどもの給与帳{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3">
   <h2 class="mb-0">ホーム</h2>
@@ -104,14 +104,6 @@
       <div class="card h-100 text-center p-3" style="cursor:pointer;">
         <i class="bi bi-bar-chart-fill fs-1 text-info mb-2"></i>
         <div class="fw-bold">実績・積み上げ</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-6">
-    <a href="{{ url_for('admin.rates') }}" class="text-decoration-none">
-      <div class="card h-100 text-center p-3" style="cursor:pointer;">
-        <i class="bi bi-table fs-1 text-secondary mb-2"></i>
-        <div class="fw-bold">単価表</div>
       </div>
     </a>
   </div>
