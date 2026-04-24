@@ -3,9 +3,14 @@
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3">
   <h2 class="mb-0">ホーム</h2>
-  <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-gear me-1"></i>設定
-  </a>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('admin.payslip') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-printer me-1"></i>給料明細
+    </a>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-gear me-1"></i>設定
+    </a>
+  </div>
 </div>
 
 {# 子供切り替えボタン #}
@@ -58,14 +63,6 @@
       <div class="card h-100 text-center p-3" style="cursor:pointer;">
         <i class="bi bi-star-fill fs-1 text-warning mb-2"></i>
         <div class="fw-bold">成績の確認</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-6">
-    <a href="{{ url_for('admin.payslip') }}" class="text-decoration-none">
-      <div class="card h-100 text-center p-3" style="cursor:pointer;">
-        <i class="bi bi-printer fs-1 text-secondary mb-2"></i>
-        <div class="fw-bold">給料明細</div>
       </div>
     </a>
   </div>
