@@ -25,14 +25,13 @@ def create_app():
 
     with app.app_context():
         init_db()
-        from .routes import auth, home, chores, grades, finance, admin, compare, goals, setup, register, billing, seo, jarvis, onboarding, stats
+        from .routes import auth, home, chores, grades, finance, admin, goals, setup, register, billing, seo, jarvis, onboarding, stats
         app.register_blueprint(auth.bp)
         app.register_blueprint(home.bp)
         app.register_blueprint(chores.bp)
         app.register_blueprint(grades.bp)
         app.register_blueprint(finance.bp)
         app.register_blueprint(admin.bp)
-        app.register_blueprint(compare.bp)
         app.register_blueprint(goals.bp)
         app.register_blueprint(setup.bp)
         app.register_blueprint(register.bp)

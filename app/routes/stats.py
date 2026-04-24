@@ -48,12 +48,41 @@ def index():
     test_bonus_count = test_bonus_row['cnt']
     test_bonus_total = test_bonus_row['total']
 
-    # 今月の家事日数（ユニーク日）
+    # 今月・先月の家事日数と種類別件数
     month_str = f'{today.year}-{today.month:02d}'
+    prev_m = today.month - 1 if today.month > 1 else 12
+    prev_y = today.year if today.month > 1 else today.year - 1
+    prev_month_str = f'{prev_y}-{prev_m:02d}'
+
     chore_days_this_month = db.execute('''
         SELECT COUNT(DISTINCT record_date) as cnt FROM chore_records
         WHERE user_id=? AND strftime('%Y-%m', record_date)=?
     ''', (target_id, month_str)).fetchone()['cnt']
+
+    chore_days_prev_month = db.execute('''
+        SELECT COUNT(DISTINCT record_date) as cnt FROM chore_records
+        WHERE user_id=? AND strftime('%Y-%m', record_date)=?
+    ''', (target_id, prev_month_str)).fetchone()['cnt']
+
+    # 家事種類別：今月 vs 先月
+    chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
+    chore_comparison = []
+    for ct in chore_types:
+        this_cnt = db.execute('''
+            SELECT COUNT(*) as cnt FROM chore_records
+            WHERE user_id=? AND chore_type_id=? AND strftime('%Y-%m', record_date)=?
+        ''', (target_id, ct['id'], month_str)).fetchone()['cnt']
+        prev_cnt = db.execute('''
+            SELECT COUNT(*) as cnt FROM chore_records
+            WHERE user_id=? AND chore_type_id=? AND strftime('%Y-%m', record_date)=?
+        ''', (target_id, ct['id'], prev_month_str)).fetchone()['cnt']
+        if this_cnt > 0 or prev_cnt > 0:
+            chore_comparison.append({
+                'name': ct['name'],
+                'this': this_cnt,
+                'prev': prev_cnt,
+                'diff': this_cnt - prev_cnt,
+            })
 
     # 直近6ヶ月の給料推移
     monthly_history = []
@@ -106,6 +135,9 @@ def index():
                            test_bonus_count=test_bonus_count,
                            test_bonus_total=test_bonus_total,
                            chore_days_this_month=chore_days_this_month,
+                           chore_days_prev_month=chore_days_prev_month,
+                           prev_month=prev_m,
+                           chore_comparison=chore_comparison,
                            monthly_history=monthly_history,
                            max_total=max_total,
                            grade_counts=grade_counts,

@@ -84,11 +84,16 @@
         <div class="fw-bold" style="font-size:3rem; color:var(--primary);">{{ chore_days_this_month }}</div>
         <div class="text-muted">日やった</div>
         <div class="text-muted small mt-1">（{{ today.day }}日中）</div>
-        {# 進捗バー #}
         <div class="progress mt-3" style="height:10px;">
           <div class="progress-bar" style="width:{{ (chore_days_this_month / today.day * 100) | int }}%; background:var(--primary);"></div>
         </div>
         <div class="text-muted small mt-1">達成率 {{ (chore_days_this_month / today.day * 100) | int }}%</div>
+        {# 先月比 #}
+        {% set day_diff = chore_days_this_month - chore_days_prev_month %}
+        <div class="mt-2 fw-bold {% if day_diff > 0 %}text-success{% elif day_diff < 0 %}text-danger{% else %}text-muted{% endif %}">
+          先月（{{ prev_month }}月：{{ chore_days_prev_month }}日）比
+          {% if day_diff > 0 %}+{{ day_diff }}日 ▲{% elif day_diff < 0 %}{{ day_diff }}日 ▼{% else %}変化なし{% endif %}
+        </div>
       </div>
     </div>
   </div>
@@ -131,5 +136,31 @@
     </div>
   </div>
 </div>
+
+{# 家事種類別 先月比 #}
+{% if chore_comparison %}
+<div class="card mb-4">
+  <div class="card-header">家事の先月比（{{ prev_month }}月 → {{ today.month }}月）</div>
+  <div class="card-body p-0">
+    <table class="table table-sm text-center mb-0">
+      <thead style="background:#d4edda;">
+        <tr><th class="text-start ps-3">家事</th><th>先月</th><th>今月</th><th>増減</th></tr>
+      </thead>
+      <tbody>
+        {% for c in chore_comparison %}
+        <tr>
+          <td class="text-start ps-3 fw-bold">{{ c.name }}</td>
+          <td class="text-muted">{{ c.prev }}回</td>
+          <td class="fw-bold">{{ c.this }}回</td>
+          <td class="fw-bold {% if c.diff > 0 %}text-success{% elif c.diff < 0 %}text-danger{% else %}text-muted{% endif %}">
+            {% if c.diff > 0 %}+{{ c.diff }}{% elif c.diff < 0 %}{{ c.diff }}{% else %}±0{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 
 {% endblock %}
