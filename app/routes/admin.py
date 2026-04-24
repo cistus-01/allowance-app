@@ -401,27 +401,31 @@ def give_bonus():
     db = get_db()
     user_id = request.form.get('user_id', type=int)
     record_date = request.form.get('record_date') or str(date.today())
+    score = request.form.get('score', '').strip()
     note = request.form.get('note', '').strip()
+    custom_amount = request.form.get('amount', type=int)
     subject_names = request.form.getlist('subjects')
     if not verify_child_ownership(db, user_id):
         flash('権限がありません。', 'danger')
-        return redirect(url_for('admin.bonus'))
-    unit_price = _grade_pay_unit(db, user_id)
+        return redirect(url_for('admin.bonus') + '#test')
+    unit_price = custom_amount if custom_amount and custom_amount > 0 else _grade_pay_unit(db, user_id)
+    note_parts = [p for p in [score + '点' if score else '', note] if p]
+    full_note = ' / '.join(note_parts) or 'テストボーナス'
     if user_id and subject_names:
         for subject in subject_names:
             db.execute('''
                 INSERT INTO finance_records (user_id, record_date, type, category, item, amount, note, created_by)
                 VALUES (?, ?, 'income', 'test_bonus', ?, ?, ?, ?)
-            ''', (user_id, record_date, subject, unit_price, note or 'テスト満点ボーナス', current_user.id))
+            ''', (user_id, record_date, subject, unit_price, full_note, current_user.id))
         db.commit()
-        flash(f'テスト満点ボーナス {len(subject_names)}科目 ¥{unit_price * len(subject_names):,} を記録しました。', 'success')
-    return redirect(url_for('admin.bonus'))
+        flash(f'テストボーナス {len(subject_names)}科目 ¥{unit_price * len(subject_names):,} を記録しました。', 'success')
+    return redirect(url_for('admin.bonus') + '#test')
 
 
-@bp.route('/bonus/oneshot', methods=['POST'])
+@bp.route('/bonus/special', methods=['POST'])
 @login_required
 @parent_required
-def give_oneshot_bonus():
+def give_special_bonus():
     from datetime import date
     db = get_db()
     user_id = request.form.get('user_id', type=int)
@@ -431,14 +435,14 @@ def give_oneshot_bonus():
     note = request.form.get('note', '').strip()
     if not verify_child_ownership(db, user_id) or not title or not amount or amount <= 0:
         flash('入力内容を確認してください。', 'danger')
-        return redirect(url_for('admin.bonus'))
+        return redirect(url_for('admin.bonus') + '#special')
     db.execute('''
         INSERT INTO finance_records (user_id, record_date, type, category, item, amount, note, created_by)
         VALUES (?, ?, 'income', 'bonus', ?, ?, ?, ?)
-    ''', (user_id, record_date, title, amount, note or 'ワンタイムボーナス', current_user.id))
+    ''', (user_id, record_date, title, amount, note or '特別ボーナス', current_user.id))
     db.commit()
-    flash(f'ワンタイムボーナス「{title}」¥{amount:,} を記録しました。', 'success')
-    return redirect(url_for('admin.bonus'))
+    flash(f'特別ボーナス「{title}」¥{amount:,} を記録しました。', 'success')
+    return redirect(url_for('admin.bonus') + '#special')
 
 
 @bp.route('/bonus/delete/<int:record_id>', methods=['POST'])
@@ -447,16 +451,17 @@ def give_oneshot_bonus():
 def delete_bonus(record_id):
     db = get_db()
     rec = db.execute('''
-        SELECT user_id FROM finance_records
+        SELECT user_id, category FROM finance_records
         WHERE id=? AND category IN ('test_bonus', 'summer_bonus', 'bonus')
     ''', (record_id,)).fetchone()
     if not rec or not verify_child_ownership(db, rec['user_id']):
         flash('権限がありません。', 'danger')
         return redirect(url_for('admin.bonus'))
+    tab = '#test' if rec['category'] == 'test_bonus' else '#special'
     db.execute('DELETE FROM finance_records WHERE id=?', (record_id,))
     db.commit()
     flash('削除しました。', 'success')
-    return redirect(url_for('admin.bonus'))
+    return redirect(url_for('admin.bonus') + tab)
 
 
 @bp.route('/challenge/new', methods=['POST'])
@@ -468,14 +473,14 @@ def challenge_new():
     family = get_family(db)
     if not family:
         flash('ファミリーが見つかりません。', 'danger')
-        return redirect(url_for('admin.bonus'))
+        return redirect(url_for('admin.bonus') + '#challenge')
     user_id = request.form.get('user_id', type=int)
     title = request.form.get('title', '').strip()
     condition = request.form.get('condition', '').strip()
     reward_amount = request.form.get('reward_amount', type=int)
     if not verify_child_ownership(db, user_id) or not title or not reward_amount or reward_amount <= 0:
         flash('入力内容を確認してください。', 'danger')
-        return redirect(url_for('admin.bonus'))
+        return redirect(url_for('admin.bonus') + '#challenge')
     db.execute('''
         INSERT INTO challenges (family_id, user_id, title, condition, reward_amount)
         VALUES (?, ?, ?, ?, ?)
@@ -483,7 +488,7 @@ def challenge_new():
     db.commit()
     child = db.execute('SELECT name FROM users WHERE id=?', (user_id,)).fetchone()
     flash(f'チャレンジ「{title}」を{child["name"]}に設定しました！', 'success')
-    return redirect(url_for('admin.bonus'))
+    return redirect(url_for('admin.bonus') + '#challenge')
 
 
 @bp.route('/challenge/<int:challenge_id>/complete', methods=['POST'])
@@ -500,19 +505,86 @@ def challenge_complete(challenge_id):
     ).fetchone()
     if not ch:
         flash('チャレンジが見つかりません。', 'danger')
-        return redirect(url_for('admin.bonus'))
-    now = datetime.utcnow().isoformat()
-    db.execute(
-        'UPDATE challenges SET status="done", completed_at=? WHERE id=?',
-        (now, challenge_id)
-    )
+        return redirect(url_for('admin.bonus') + '#challenge')
+    db.execute('UPDATE challenges SET status="done", completed_at=? WHERE id=?',
+               (datetime.utcnow().isoformat(), challenge_id))
     db.execute('''
         INSERT INTO finance_records (user_id, record_date, type, category, item, amount, note, created_by)
         VALUES (?, ?, 'income', 'bonus', ?, ?, 'チャレンジ達成ボーナス', ?)
     ''', (ch['user_id'], str(date.today()), ch['title'], ch['reward_amount'], current_user.id))
     db.commit()
     flash(f'チャレンジ「{ch["title"]}」達成！¥{ch["reward_amount"]:,} を来月の給与に反映します。', 'success')
-    return redirect(url_for('admin.bonus'))
+    return redirect(url_for('admin.bonus') + '#challenge')
+
+
+@bp.route('/challenge/<int:challenge_id>/edit', methods=['POST'])
+@login_required
+@parent_required
+def challenge_edit(challenge_id):
+    from ..utils import get_family
+    db = get_db()
+    family = get_family(db)
+    ch = db.execute(
+        'SELECT * FROM challenges WHERE id=? AND family_id=?',
+        (challenge_id, family['id'] if family else -1)
+    ).fetchone()
+    if not ch:
+        flash('チャレンジが見つかりません。', 'danger')
+        return redirect(url_for('admin.bonus') + '#challenge')
+    title = request.form.get('title', '').strip()
+    condition = request.form.get('condition', '').strip()
+    reward_amount = request.form.get('reward_amount', type=int)
+    if not title or not reward_amount or reward_amount <= 0:
+        flash('入力内容を確認してください。', 'danger')
+        return redirect(url_for('admin.bonus') + '#challenge')
+    db.execute('UPDATE challenges SET title=?, condition=?, reward_amount=? WHERE id=?',
+               (title, condition or None, reward_amount, challenge_id))
+    db.commit()
+    flash(f'チャレンジ「{title}」を更新しました。', 'success')
+    return redirect(url_for('admin.bonus') + '#challenge')
+
+
+@bp.route('/challenge/<int:challenge_id>/delete', methods=['POST'])
+@login_required
+@parent_required
+def challenge_delete(challenge_id):
+    from ..utils import get_family
+    db = get_db()
+    family = get_family(db)
+    ch = db.execute(
+        'SELECT * FROM challenges WHERE id=? AND family_id=?',
+        (challenge_id, family['id'] if family else -1)
+    ).fetchone()
+    if not ch:
+        flash('チャレンジが見つかりません。', 'danger')
+        return redirect(url_for('admin.bonus') + '#challenge')
+    db.execute('DELETE FROM challenges WHERE id=?', (challenge_id,))
+    db.commit()
+    flash(f'チャレンジ「{ch["title"]}」を削除しました。', 'info')
+    return redirect(url_for('admin.bonus') + '#challenge')
+
+
+@bp.route('/challenge/<int:challenge_id>/copy', methods=['POST'])
+@login_required
+@parent_required
+def challenge_copy(challenge_id):
+    from ..utils import get_family
+    db = get_db()
+    family = get_family(db)
+    ch = db.execute(
+        'SELECT * FROM challenges WHERE id=? AND family_id=?',
+        (challenge_id, family['id'] if family else -1)
+    ).fetchone()
+    if not ch:
+        flash('チャレンジが見つかりません。', 'danger')
+        return redirect(url_for('admin.bonus') + '#challenge')
+    db.execute('''
+        INSERT INTO challenges (family_id, user_id, title, condition, reward_amount)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (family['id'], ch['user_id'], ch['title'], ch['condition'], ch['reward_amount']))
+    db.commit()
+    flash(f'チャレンジ「{ch["title"]}」をコピーしました。', 'success')
+    return redirect(url_for('admin.bonus') + '#challenge')
 
 
 @bp.route('/challenge/<int:challenge_id>/cancel', methods=['POST'])
@@ -528,11 +600,11 @@ def challenge_cancel(challenge_id):
     ).fetchone()
     if not ch:
         flash('チャレンジが見つかりません。', 'danger')
-        return redirect(url_for('admin.bonus'))
+        return redirect(url_for('admin.bonus') + '#challenge')
     db.execute('UPDATE challenges SET status="cancelled" WHERE id=?', (challenge_id,))
     db.commit()
     flash(f'チャレンジ「{ch["title"]}」をキャンセルしました。', 'info')
-    return redirect(url_for('admin.bonus'))
+    return redirect(url_for('admin.bonus') + '#challenge')
 
 
 @bp.route('/preset/<int:slot>/save', methods=['POST'])
