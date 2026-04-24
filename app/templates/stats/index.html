@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block title %}実績・積み上げ{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h3 class="mb-0"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>実績・積み上げ</h3>
+</div>
+
+{# 親：子供切り替え #}
+{% if children %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  {% for child in children %}
+  <a href="{{ url_for('stats.index', child_id=child.id) }}"
+     class="btn {% if child.id == target_id %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm fw-bold">
+    {{ child.name }}（{{ child.grade }}年）
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<p class="fw-bold fs-5 mb-3">{{ target_user.name }}（{{ target_user.grade }}年生）</p>
+
+{# 累計ステータス #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3 h-100">
+      <div class="text-muted small mb-1">総家事回数</div>
+      <div class="fw-bold fs-3" style="color:var(--primary)">{{ total_chore_count }}</div>
+      <div class="text-muted small">回</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3 h-100">
+      <div class="text-muted small mb-1">家事で稼いだ累計</div>
+      <div class="fw-bold fs-3" style="color:var(--primary)">¥{{ '{:,}'.format(total_chore_pay) }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3 h-100">
+      <div class="text-muted small mb-1">テスト100点回数</div>
+      <div class="fw-bold fs-3" style="color:#f8b500">{{ test_bonus_count }}</div>
+      <div class="text-muted small">回</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3 h-100">
+      <div class="text-muted small mb-1">テストボーナス累計</div>
+      <div class="fw-bold fs-3" style="color:#f8b500">¥{{ '{:,}'.format(test_bonus_total) }}</div>
+    </div>
+  </div>
+</div>
+
+{# 月別給料推移 #}
+<div class="card mb-4">
+  <div class="card-header">直近6ヶ月の給料推移</div>
+  <div class="card-body">
+    <div class="d-flex align-items-end gap-2" style="height:140px;">
+      {% for h in monthly_history %}
+      {% set bar_height = (h.total / max_total * 120) | int %}
+      <div class="d-flex flex-column align-items-center flex-fill">
+        <div class="small fw-bold mb-1" style="font-size:.75rem; color:var(--primary)">
+          {% if h.total > 0 %}¥{{ '{:,}'.format(h.total) }}{% endif %}
+        </div>
+        <div style="width:100%; height:{{ bar_height }}px; background:var(--primary); border-radius:4px 4px 0 0; min-height:4px;"></div>
+        <div class="small text-muted mt-1" style="font-size:.75rem">{{ h.label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {# 凡例 #}
+    <div class="d-flex gap-3 mt-3 flex-wrap">
+      {% set last = monthly_history[-1] %}
+      <span class="small text-muted"><span class="badge bg-secondary">今月予定</span> ¥{{ '{:,}'.format(last.total) }}</span>
+      <span class="small text-muted">うち家事 ¥{{ '{:,}'.format(last.chore_pay) }}　成績 ¥{{ '{:,}'.format(last.academic_pay) }}　テストボーナス ¥{{ '{:,}'.format(last.bonus_pay) }}</span>
+    </div>
+  </div>
+</div>
+
+{# 今月の家事 #}
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">今月の家事（{{ today.month }}月）</div>
+      <div class="card-body text-center">
+        <div class="fw-bold" style="font-size:3rem; color:var(--primary);">{{ chore_days_this_month }}</div>
+        <div class="text-muted">日やった</div>
+        <div class="text-muted small mt-1">（{{ today.day }}日中）</div>
+        {# 進捗バー #}
+        <div class="progress mt-3" style="height:10px;">
+          <div class="progress-bar" style="width:{{ (chore_days_this_month / today.day * 100) | int }}%; background:var(--primary);"></div>
+        </div>
+        <div class="text-muted small mt-1">達成率 {{ (chore_days_this_month / today.day * 100) | int }}%</div>
+      </div>
+    </div>
+  </div>
+
+  {# 成績内訳 #}
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">成績内訳{% if grade_label %}（{{ grade_label }}）{% endif %}</div>
+      <div class="card-body">
+        {% if grade_label %}
+        {% set total_evals = grade_counts['◎'] + grade_counts['〇'] + grade_counts['△'] %}
+        <div class="d-flex justify-content-around text-center mb-3">
+          <div>
+            <div style="font-size:2rem; color:#ffd700;">◎</div>
+            <div class="fw-bold fs-4">{{ grade_counts['◎'] }}</div>
+            <div class="text-muted small">個</div>
+          </div>
+          <div>
+            <div style="font-size:2rem; color:#4caf50;">〇</div>
+            <div class="fw-bold fs-4">{{ grade_counts['〇'] }}</div>
+            <div class="text-muted small">個</div>
+          </div>
+          <div>
+            <div style="font-size:2rem; color:#bbb;">△</div>
+            <div class="fw-bold fs-4">{{ grade_counts['△'] }}</div>
+            <div class="text-muted small">個</div>
+          </div>
+        </div>
+        {% if total_evals > 0 %}
+        <div class="progress" style="height:14px; border-radius:7px;">
+          <div class="progress-bar" style="width:{{ (grade_counts['◎'] / total_evals * 100) | int }}%; background:#ffd700;"></div>
+          <div class="progress-bar" style="width:{{ (grade_counts['〇'] / total_evals * 100) | int }}%; background:#4caf50;"></div>
+          <div class="progress-bar" style="width:{{ (grade_counts['△'] / total_evals * 100) | int }}%; background:#e0e0e0;"></div>
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="text-muted text-center mt-3">成績データなし</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
