@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% block title %}はじめてガイド{% endblock %}
+
+{% block head %}
+<style>
+.tutorial-wrap { max-width: 480px; margin: 0 auto; }
+.slide { display: none; }
+.slide.active { display: block; }
+
+/* ひよこ吹き出し */
+.chara-area { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 1.2rem; }
+.chara { font-size: 3.2rem; line-height: 1; flex-shrink: 0; }
+.balloon {
+  position: relative;
+  background: #fff;
+  border: 2px solid var(--primary);
+  border-radius: 16px;
+  padding: .75rem 1rem;
+  font-size: .95rem;
+  line-height: 1.6;
+  flex: 1;
+}
+.balloon::before {
+  content: '';
+  position: absolute;
+  left: -14px; bottom: 16px;
+  border: 7px solid transparent;
+  border-right-color: var(--primary);
+}
+.balloon::after {
+  content: '';
+  position: absolute;
+  left: -10px; bottom: 17px;
+  border: 6px solid transparent;
+  border-right-color: #fff;
+}
+
+/* ステップカード */
+.step-card {
+  background: #f5f7f5;
+  border-radius: 14px;
+  padding: 1.1rem 1.2rem;
+  margin-bottom: .75rem;
+  border-left: 4px solid var(--primary);
+}
+.step-card .step-icon { font-size: 1.5rem; margin-right: .5rem; }
+
+/* 進行バー */
+.progress-dots { display: flex; justify-content: center; gap: 8px; margin: 1.2rem 0; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; transition: background .3s; }
+.dot.active { background: var(--primary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tutorial-wrap">
+
+  <div class="progress-dots" id="dots"></div>
+
+  {# ===== 親向けスライド ===== #}
+  {% if current_user.is_parent %}
+
+  <div class="slide active" data-total="5">
+    <div class="chara-area">
+      <div class="chara">🐥</div>
+      <div class="balloon">
+        <strong>{{ current_user.name }}さん、ようこそ！</strong><br>
+        ぼくが使い方を案内するよ！<br>
+        「こどもの給与帳」で、子供のやる気をお金の力で引き出そう✨
+      </div>
+    </div>
+    <div class="step-card"><span class="step-icon">💡</span>このアプリでできること</div>
+    <div class="step-card"><span class="step-icon">🏠</span>家事をやったら報酬がもらえる</div>
+    <div class="step-card"><span class="step-icon">📝</span>成績が良ければ学業給がアップ</div>
+    <div class="step-card"><span class="step-icon">🏆</span>テストで満点ならボーナス</div>
+    <div class="step-card"><span class="step-icon">🎯</span>ほしいものを目標に貯金できる</div>
+  </div>
+
+  <div class="slide">
+    <div class="chara-area">
+      <div class="chara">🐥</div>
+      <div class="balloon">
+        給与は毎月<strong>翌月分</strong>として計算されるよ。<br>
+        今月頑張ったことが来月の給料に反映されるしくみ！
+      </div>
+    </div>
+    <div class="step-card"><span class="step-icon">💴</span><strong>基本給</strong> — 毎月固定でもらえる金額</div>
+    <div class="step-card"><span class="step-icon">📚</span><strong>学年給</strong> — 学年が上がるほど増える</div>
+    <div class="step-card"><span class="step-icon">🧹</span><strong>家事報酬</strong> — 先月やった家事の合計</div>
+    <div class="step-card"><span class="step-icon">⭐</span><strong>成績給</strong> — 前学期の通知表から算出</div>
+    <div class="step-card"><span class="step-icon">🎉</span><strong>ボーナス</strong> — テスト満点・夏休み完走など</div>
+  </div>
+
+  <div class="slide">
+    <div class="chara-area">
+      <div class="chara">🐥</div>
+      <div class="balloon">
+        まずは<strong>子供のアカウント</strong>を作ろう！<br>
+        設定画面から何人でも追加できるよ。
+      </div>
+    </div>
+    <div class="step-card"><span class="step-icon">👦</span>名前・学年・ログインID・パスワードを設定</div>
+    <div class="step-card"><span class="step-icon">💰</span>単価設定で家事の金額や成績給を調整できる</div>
+    <div class="step-card"><span class="step-icon">🔧</span>「デフォルトに戻す」で標準設定に一発リセット</div>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-primary w-100 mt-2">
+      <i class="bi bi-gear me-1"></i>設定画面を開く
+    </a>
+  </div>
+
+  <div class="slide">
+    <div class="chara-area">
+      <div class="chara">🐥</div>
+      <div class="balloon">
+        毎日の<strong>家事チェック</strong>はカレンダーから！<br>
+        複数の子供が同じ家事をやったら、自動で割り勘計算するよ。
+      </div>
+    </div>
+    <div class="step-card"><span class="step-icon">📅</span>カレンダーの日付をタップして家事をON/OFF</div>
+    <div class="step-card"><span class="step-icon">👥</span>2人でやった家事は報酬を自動で折半</div>
+    <div class="step-card"><span class="step-icon">📊</span>実績画面で先月比・累計を確認できる</div>
+  </div>
+
+  <div class="slide">
+    <div class="chara-area">
+      <div class="chara">🐥</div>
+      <div class="balloon">
+        準備完了！いつでも<strong>ヘルプ</strong>から使い方を確認できるよ。<br>
+        困ったときは遠慮なく見てね😊
+      </div>
+    </div>
+    <div class="step-card"><span class="step-icon">❓</span>ナビの「ヘルプ」からいつでも確認</div>
+    <div class="step-card"><span class="step-icon">🔔</span>給料明細は印刷して子供に手渡そう</div>
+    <div class="step-card"><span class="step-icon">🌟</span>楽しく続けることが一番大事！</div>
+    <form method="post" action="{{ url_for('help.tutorial_done') }}" class="mt-3">
+      <input type="hidden" name="next" value="{{ url_for('home.index') }}">
+      <button type="submit" class="btn btn-primary w-100 btn-lg fw-bold">
+        さあ始めよう！🚀
+      </button>
+    </form>
+  </div>
+
+  {% else %}
+  {# ===== 子供向けスライド ===== #}
+
+  <div class="slide active" data-total="4">
+    <div class="chara-area">
+      <div class="chara">🐥</div>
+      <div class="balloon">
+        <strong>{{ current_user.name }}ちゃん、ようこそ！</strong><br>
+        ぼくが「こどもの給与帳」の使い方を教えるよ🎉<br>
+        がんばれば<strong>本当のお金</strong>がもらえるよ！
+      </div>
+    </div>
+    <div class="step-card"><span class="step-icon">🧹</span>家事をやったら報酬がもらえる</div>
+    <div class="step-card"><span class="step-icon">📝</span>勉強を頑張ると学業給がもらえる</div>
+    <div class="step-card"><span class="step-icon">🎯</span>ほしいものを目標に貯金できる</div>
+  </div>
+
+  <div class="slide">
+    <div class="chara-area">
+      <div class="chara">🐥</div>
+      <div class="balloon">
+        毎月のお給料は<strong>来月分として計算</strong>されるよ。<br>
+        今月の家事・成績が来月の給料になるんだ！
+      </div>
+    </div>
+    <div class="step-card"><span class="step-icon">💴</span>基本給 — 毎月もらえる固定のお金</div>
+    <div class="step-card"><span class="step-icon">📚</span>学年給 — 学年が上がると増えるよ</div>
+    <div class="step-card"><span class="step-icon">🧹</span>家事報酬 — やった家事の分だけもらえる</div>
+    <div class="step-card"><span class="step-icon">⭐</span>成績給 — 通知表が良いと増える</div>
+  </div>
+
+  <div class="slide">
+    <div class="chara-area">
+      <div class="chara">🐥</div>
+      <div class="balloon">
+        家事をやったら<strong>家事画面でチェック</strong>しよう！<br>
+        毎日コツコツ続けることが大事だよ💪
+      </div>
+    </div>
+    <div class="step-card"><span class="step-icon">📅</span>カレンダーで今日の家事をタップ</div>
+    <div class="step-card"><span class="step-icon">📊</span>実績画面で自分の頑張りを振り返れる</div>
+    <div class="step-card"><span class="step-icon">🎯</span>ほしいものリストで目標を作ろう</div>
+  </div>
+
+  <div class="slide">
+    <div class="chara-area">
+      <div class="chara">🐥</div>
+      <div class="balloon">
+        準備完了！<br>
+        困ったときはヘルプを見てね。<br>
+        一緒に頑張ろう🌟
+      </div>
+    </div>
+    <div class="step-card"><span class="step-icon">❓</span>ヘルプはナビから見られるよ</div>
+    <div class="step-card"><span class="step-icon">💪</span>毎日少しずつ続けることが大事！</div>
+    <form method="post" action="{{ url_for('help.tutorial_done') }}" class="mt-3">
+      <input type="hidden" name="next" value="{{ url_for('home.index') }}">
+      <button type="submit" class="btn btn-primary w-100 btn-lg fw-bold">
+        やってみる！🚀
+      </button>
+    </form>
+  </div>
+
+  {% endif %}
+
+  {# ナビゲーションボタン #}
+  <div class="d-flex justify-content-between align-items-center mt-3">
+    <button class="btn btn-outline-secondary" id="btn-prev" onclick="changeSlide(-1)" style="display:none!important;">
+      ← もどる
+    </button>
+    <div></div>
+    <button class="btn btn-primary px-4" id="btn-next" onclick="changeSlide(1)">
+      つぎへ →
+    </button>
+  </div>
+
+  <div class="text-center mt-3">
+    <form method="post" action="{{ url_for('help.tutorial_done') }}">
+      <input type="hidden" name="next" value="{{ url_for('home.index') }}">
+      <button type="submit" class="btn btn-link text-muted small">スキップしてホームへ</button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const slides = document.querySelectorAll('.slide');
+const total = slides[0]?.dataset.total || slides.length;
+const dotsEl = document.getElementById('dots');
+const btnPrev = document.getElementById('btn-prev');
+const btnNext = document.getElementById('btn-next');
+let current = 0;
+
+// ドット生成
+for (let i = 0; i < total; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  dotsEl.appendChild(d);
+}
+
+function updateUI() {
+  slides.forEach((s, i) => s.classList.toggle('active', i === current));
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+  btnPrev.style.display = current === 0 ? 'none' : '';
+  // 最終スライドでは「つぎへ」を隠す（代わりに「さあ始めよう」ボタンが表示される）
+  btnNext.style.display = current === slides.length - 1 ? 'none' : '';
+}
+
+function changeSlide(dir) {
+  current = Math.max(0, Math.min(slides.length - 1, current + dir));
+  updateUI();
+}
+
+updateUI();
+</script>
+{% endblock %}

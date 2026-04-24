@@ -9,6 +9,7 @@ class User(UserMixin):
         self.role = row['role']
         self.grade = row['grade']
         self.family_id = row['family_id'] if 'family_id' in row.keys() else None
+        self.tutorial_done = row['tutorial_done'] if 'tutorial_done' in row.keys() else 0
 
     @property
     def is_parent(self):

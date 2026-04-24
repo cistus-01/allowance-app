@@ -26,6 +26,10 @@ def index():
             elif status not in ('active', 'trial'):
                 flash('トライアル期間が終了しました。プランにご登録ください。', 'warning')
                 return redirect(url_for('billing.index'))
+    # 初回ログイン時はチュートリアルへ
+    if not current_user.tutorial_done:
+        return redirect(url_for('help.tutorial'))
+
     db = get_db()
     today = date.today()
     next_month = today.month + 1 if today.month < 12 else 1

@@ -471,9 +471,30 @@ allowance-app/
 
 ---
 
-## 12. 積み残し・将来検討事項
+## 12. PWA対応
 
-- [ ] git push → Render デプロイ（ローカルDockerのみ反映済み、2026-04-24時点）
-- [ ] DB本番のpay_rates: eval_excellent が 150 のまま。デフォルトに戻すボタンを押すと ¥50 になる
-- [ ] compare.py / compare/ テンプレート の物理削除（未使用だが残存）
-- [ ] subjects テーブルの is_active カラムが load_preset 時に UPDATE されるが、schema.sql に明示がない点の整合性確認
+- `app/static/manifest.json` — name/short_name: こどもの給与帳、display: standalone
+- アイコン: `app/static/icon-{48〜512}x{size}.png`（SVGから生成）
+- `app/static/favicon.ico`、`app/static/apple-touch-icon.png`
+- `base.html` / `lp.html` に `<link rel="manifest">` + Apple/Android 向けメタタグ追加
+- **インストール方法**: iOS → Safari共有ボタン→ホーム画面に追加 / Android → Chromeメニュー→アプリをインストール / PC → アドレスバーの⊕アイコン
+
+## 13. ログイン永続化
+
+- `login_user(user, remember=True)` — ログイン時・新規登録時
+- `REMEMBER_COOKIE_DURATION = timedelta(days=365)`
+- `REMEMBER_COOKIE_HTTPONLY = True`, `REMEMBER_COOKIE_SAMESITE = 'Lax'`
+
+## 14. 既知の制限・将来対応事項
+
+- `grade_input_periods` の UNIQUE(year, term) 制約が残存（family_id追加済みだが制約変更不可）。複数家族が同year/termを登録しようとすると制約エラー → 将来的にテーブル再作成が必要
+- `salary_payments` テーブルは未使用（将来の支払い記録機能用に残置）
+- subjects の is_active カラムは schema.sql に明示なし（init_db の ALTER TABLE で追加）
+- パスワードリセットメールは SMTP 環境変数未設定時は画面表示フォールバック
+
+## 15. 次回実装予定
+
+- [ ] ボーナス管理の柔軟化（反映型・単発型をユーザーが自由定義）
+- [ ] チュートリアル画面（初回ログイン時・かわいいキャラクター）
+- [ ] ヘルプページ
+- [ ] 退会機能（Stripe解約 + 全データ削除）

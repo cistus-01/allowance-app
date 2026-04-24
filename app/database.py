@@ -50,6 +50,11 @@ def init_db():
         )
     ''')
 
+    # tutorial_done 列を追加（既存DB対応）
+    user_cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+    if 'tutorial_done' not in user_cols:
+        db.execute("ALTER TABLE users ADD COLUMN tutorial_done INTEGER DEFAULT 0")
+
     # grade_input_periods に family_id 列を追加（既存DB対応）
     gip_cols = [r[1] for r in db.execute("PRAGMA table_info(grade_input_periods)").fetchall()]
     if 'family_id' not in gip_cols:
