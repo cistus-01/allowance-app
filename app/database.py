@@ -88,7 +88,8 @@ def _seed_if_empty(db):
              ('grade_pay_multiplier', 50, '学年給（学年×）'),
              ('eval_excellent', 150, '成績給◎'),
              ('eval_good', 20, '成績給〇'),
-             ('eval_poor', 0, '成績給△')]
+             ('eval_poor', 0, '成績給△'),
+             ('test_bonus_per_subject', 300, 'テスト満点ボーナス（1科目）')]
         )
 
     db.commit()

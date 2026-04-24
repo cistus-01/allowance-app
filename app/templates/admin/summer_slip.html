@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}夏休みボーナス明細{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('home.index') }}" class="btn btn-outline-secondary btn-sm me-3">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h3 class="mb-0"><i class="bi bi-sun me-2 text-warning"></i>夏休みボーナス明細</h3>
+</div>
+
+{% for slip in slips %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>{{ slip.child.name }}（{{ slip.child.grade }}年）</span>
+    <span class="fw-bold fs-5">合計 ¥{{ '{:,}'.format(slip.total) }}</span>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-bordered text-center mb-0">
+      <thead style="background:#fff8e1;">
+        <tr><th>項目</th><th>内容</th><th>金額</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>家事（7月）</td>
+          <td>{{ slip.chore_july_cnt }}回</td>
+          <td>¥{{ '{:,}'.format(slip.chore_july_pay) }}</td>
+        </tr>
+        <tr>
+          <td>家事（8月）</td>
+          <td>{{ slip.chore_aug_cnt }}回</td>
+          <td>¥{{ '{:,}'.format(slip.chore_aug_pay) }}</td>
+        </tr>
+        <tr>
+          <td>テスト満点ボーナス</td>
+          <td>{{ slip.bonus_cnt }}科目</td>
+          <td>¥{{ '{:,}'.format(slip.bonus_pay) }}</td>
+        </tr>
+        <tr class="table-warning fw-bold">
+          <td colspan="2">夏休みボーナス合計</td>
+          <td>¥{{ '{:,}'.format(slip.total) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+<div class="text-center mt-3">
+  <button class="btn btn-outline-secondary" onclick="window.print()">
+    <i class="bi bi-printer me-1"></i>印刷する
+  </button>
+</div>
+{% endblock %}

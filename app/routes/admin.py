@@ -328,9 +328,37 @@ def payslip():
 @login_required
 @parent_required
 def summer_slip():
+    from ..salary import calc_chore_pay, calc_test_bonus
+    import datetime
     db = get_db()
+    year = request.args.get('year', datetime.date.today().year, type=int)
     children = get_family_children(db)
-    return render_template('admin/summer_slip.html', children=children)
+    slips = []
+    for child in children:
+        chore_july_pay = calc_chore_pay(child['id'], year, 7)
+        chore_aug_pay  = calc_chore_pay(child['id'], year, 8)
+        july_cnt = db.execute('''SELECT COUNT(*) as c FROM chore_records
+            WHERE user_id=? AND strftime('%Y-%m', record_date)=?''',
+            (child['id'], f'{year}-07')).fetchone()['c']
+        aug_cnt = db.execute('''SELECT COUNT(*) as c FROM chore_records
+            WHERE user_id=? AND strftime('%Y-%m', record_date)=?''',
+            (child['id'], f'{year}-08')).fetchone()['c']
+        bonus_july, bonus_july_cnt, _ = calc_test_bonus(child['id'], year, 7)
+        bonus_aug,  bonus_aug_cnt,  _ = calc_test_bonus(child['id'], year, 8)
+        bonus_pay = bonus_july + bonus_aug
+        bonus_cnt = bonus_july_cnt + bonus_aug_cnt
+        total = chore_july_pay + chore_aug_pay + bonus_pay
+        slips.append({
+            'child': child,
+            'chore_july_cnt': july_cnt,
+            'chore_july_pay': chore_july_pay,
+            'chore_aug_cnt': aug_cnt,
+            'chore_aug_pay': chore_aug_pay,
+            'bonus_pay': bonus_pay,
+            'bonus_cnt': bonus_cnt,
+            'total': total,
+        })
+    return render_template('admin/summer_slip.html', slips=slips, year=year)
 
 @bp.route('/bonus', methods=['GET'])
 @login_required
@@ -339,20 +367,24 @@ def bonus():
     from datetime import date
     db = get_db()
     children = get_family_children(db)
+    subjects = db.execute('SELECT * FROM subjects ORDER BY sort_order').fetchall()
+    rates = db.execute('SELECT * FROM pay_rates WHERE key="test_bonus_per_subject"').fetchone()
+    unit_price = rates['value'] if rates else 300
     child_ids = [c['id'] for c in children]
     bonus_records = []
     if child_ids:
         placeholders = ','.join('?' * len(child_ids))
         rows = db.execute(f'''
-            SELECT f.record_date, f.amount, f.note, u.name as child_name
+            SELECT f.record_date, f.item, f.amount, f.note, u.name as child_name, u.id as child_id
             FROM finance_records f
             JOIN users u ON f.user_id = u.id
-            WHERE f.user_id IN ({placeholders}) AND f.category = 'bonus'
-            ORDER BY f.record_date DESC LIMIT 50
+            WHERE f.user_id IN ({placeholders}) AND f.category = 'test_bonus'
+            ORDER BY f.record_date DESC, u.name LIMIT 100
         ''', child_ids).fetchall()
         bonus_records = rows
-    return render_template('admin/bonus.html', children=children,
-                           bonus_records=bonus_records, today=date.today())
+    return render_template('admin/bonus.html', children=children, subjects=subjects,
+                           bonus_records=bonus_records, unit_price=unit_price,
+                           today=date.today())
 
 @bp.route('/bonus/give', methods=['POST'])
 @login_required
@@ -361,17 +393,20 @@ def give_bonus():
     from datetime import date
     db = get_db()
     user_id = request.form.get('user_id', type=int)
-    amount = request.form.get('amount', type=int)
     record_date = request.form.get('record_date') or str(date.today())
     note = request.form.get('note', '').strip()
+    subject_names = request.form.getlist('subjects')
     if not verify_child_ownership(db, user_id):
         flash('権限がありません。', 'danger')
         return redirect(url_for('admin.bonus'))
-    if user_id and amount and amount > 0:
-        db.execute('''
-            INSERT INTO finance_records (user_id, record_date, type, category, amount, note, created_by)
-            VALUES (?, ?, 'income', 'bonus', ?, ?, ?)
-        ''', (user_id, record_date, amount, note or 'ボーナス', current_user.id))
+    rates = db.execute('SELECT value FROM pay_rates WHERE key="test_bonus_per_subject"').fetchone()
+    unit_price = rates['value'] if rates else 300
+    if user_id and subject_names:
+        for subject in subject_names:
+            db.execute('''
+                INSERT INTO finance_records (user_id, record_date, type, category, item, amount, note, created_by)
+                VALUES (?, ?, 'income', 'test_bonus', ?, ?, ?, ?)
+            ''', (user_id, record_date, subject, unit_price, note or 'テスト満点ボーナス', current_user.id))
         db.commit()
-        flash('ボーナスを渡しました。', 'success')
+        flash(f'テスト満点ボーナス {len(subject_names)}科目 ¥{unit_price * len(subject_names):,} を記録しました。', 'success')
     return redirect(url_for('admin.bonus'))

@@ -1,19 +1,18 @@
 {% extends 'base.html' %}
-{% block title %}ボーナス{% endblock %}
+{% block title %}テストボーナス入力{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center mb-4">
   <a href="{{ url_for('home.index') }}" class="btn btn-outline-secondary btn-sm me-3">
     <i class="bi bi-arrow-left"></i>
   </a>
-  <h3 class="mb-0"><i class="bi bi-gift me-2 text-danger"></i>ボーナス</h3>
+  <h3 class="mb-0"><i class="bi bi-trophy me-2 text-warning"></i>テストボーナス入力</h3>
 </div>
 
-{# ボーナスを渡す #}
 <div class="card mb-4">
-  <div class="card-header">ボーナスを渡す</div>
+  <div class="card-header">テスト満点ボーナスを記録（1科目 ¥{{ unit_price }}）</div>
   <div class="card-body">
     <form method="post" action="{{ url_for('admin.give_bonus') }}">
-      <div class="row g-3">
+      <div class="row g-3 mb-3">
         <div class="col-sm-4">
           <label class="form-label small fw-bold">対象の子供</label>
           <select name="user_id" class="form-select" required>
@@ -23,53 +22,74 @@
           </select>
         </div>
         <div class="col-sm-3">
-          <label class="form-label small fw-bold">金額</label>
-          <div class="input-group">
-            <span class="input-group-text">¥</span>
-            <input type="number" name="amount" class="form-control" min="1" placeholder="例: 500" required>
-          </div>
-        </div>
-        <div class="col-sm-3">
-          <label class="form-label small fw-bold">日付</label>
+          <label class="form-label small fw-bold">テストの日付</label>
           <input type="date" name="record_date" class="form-control" value="{{ today }}" required>
         </div>
-        <div class="col-sm-6">
-          <label class="form-label small fw-bold">理由・メモ</label>
-          <input type="text" name="note" class="form-control" placeholder="例: 夏休みボーナス、お手伝い頑張ったで賞">
+        <div class="col-sm-5">
+          <label class="form-label small fw-bold">メモ（任意）</label>
+          <input type="text" name="note" class="form-control" placeholder="例: 2学期中間テスト">
         </div>
-        <div class="col-sm-2 d-flex align-items-end">
-          <button type="submit" class="btn btn-danger w-100">渡す</button>
-        </div>
+      </div>
+
+      <label class="form-label small fw-bold">満点を取った科目（複数選択可）</label>
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        {% for s in subjects %}
+        <label class="btn btn-outline-success" style="cursor:pointer;">
+          <input type="checkbox" name="subjects" value="{{ s.name }}" class="d-none subject-check">
+          {{ s.name }}
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="d-flex align-items-center gap-3">
+        <button type="submit" class="btn btn-warning fw-bold">
+          <i class="bi bi-trophy me-1"></i>記録する
+        </button>
+        <span class="text-muted small" id="selected-count">0科目選択中</span>
       </div>
     </form>
   </div>
 </div>
 
-{# ボーナス履歴 #}
+{# 履歴 #}
 <div class="card">
   <div class="card-header">ボーナス履歴</div>
   <div class="card-body">
     {% if bonus_records %}
-    <div class="table-responsive">
-      <table class="table table-sm align-middle">
-        <thead>
-          <tr><th>日付</th><th>対象</th><th>金額</th><th>メモ</th></tr>
-        </thead>
-        <tbody>
-          {% for rec in bonus_records %}
-          <tr>
-            <td class="text-muted small">{{ rec.record_date }}</td>
-            <td class="fw-bold">{{ rec.child_name }}</td>
-            <td class="text-danger fw-bold">¥{{ '{:,}'.format(rec.amount) }}</td>
-            <td class="text-muted small">{{ rec.note or '' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    {% set ns = namespace(prev_date='', prev_child='') %}
+    {% for rec in bonus_records %}
+    {% set key = rec.record_date ~ rec.child_name ~ (rec.note or '') %}
+    {% if rec.record_date != ns.prev_date or rec.child_name != ns.prev_child %}
+    {% if not loop.first %}</ul>{% endif %}
+    <div class="mb-1 mt-3">
+      <span class="fw-bold">{{ rec.child_name }}</span>
+      <span class="text-muted small ms-2">{{ rec.record_date }}</span>
+      {% if rec.note %}<span class="badge bg-light text-dark ms-1">{{ rec.note }}</span>{% endif %}
     </div>
+    <ul class="list-inline mb-0">
+    {% set ns.prev_date = rec.record_date %}
+    {% set ns.prev_child = rec.child_name %}
+    {% endif %}
+    <li class="list-inline-item">
+      <span class="badge bg-warning text-dark">{{ rec.item }} +¥{{ rec.amount }}</span>
+    </li>
+    {% endfor %}
+    </ul>
     {% else %}
-    <p class="text-muted mb-0">まだボーナスはありません。</p>
+    <p class="text-muted mb-0">まだ記録がありません。</p>
     {% endif %}
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('.subject-check').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const checked = document.querySelectorAll('.subject-check:checked').length;
+    document.getElementById('selected-count').textContent = checked + '科目選択中';
+    cb.closest('label').classList.toggle('btn-success', cb.checked);
+    cb.closest('label').classList.toggle('btn-outline-success', !cb.checked);
+  });
+});
+</script>
 {% endblock %}

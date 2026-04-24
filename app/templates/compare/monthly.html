@@ -131,6 +131,38 @@
   </div>
 </div>
 
+{# 学業面の比較 #}
+{% if this_salary.bonus_cnt > 0 or prev_salary.bonus_cnt > 0 %}
+<div class="card mb-4">
+  <div class="card-header">⭐ テスト満点ボーナス</div>
+  <div class="card-body">
+    <div class="row g-3 text-center">
+      <div class="col-5">
+        <div class="text-muted small">{{ prev_year }}年{{ prev_month }}月</div>
+        <div class="fw-bold {% if prev_salary.bonus_cnt == 0 %}text-muted{% else %}text-warning{% endif %}">
+          {{ prev_salary.bonus_cnt }}回　¥{{ '{:,}'.format(prev_salary.bonus_pay) }}
+        </div>
+        {% if prev_salary.bonus_subjects %}
+        <div class="text-muted small mt-1">{{ prev_salary.bonus_subjects | join('、') }}</div>
+        {% endif %}
+      </div>
+      <div class="col-2 d-flex align-items-center justify-content-center">
+        <i class="bi bi-arrow-right text-muted"></i>
+      </div>
+      <div class="col-5">
+        <div class="text-muted small">{{ year }}年{{ month }}月</div>
+        <div class="fw-bold {% if this_salary.bonus_cnt == 0 %}text-muted{% else %}text-warning{% endif %}">
+          {{ this_salary.bonus_cnt }}回　¥{{ '{:,}'.format(this_salary.bonus_pay) }}
+        </div>
+        {% if this_salary.bonus_subjects %}
+        <div class="text-muted small mt-1">{{ this_salary.bonus_subjects | join('、') }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {# 給与内訳比較 #}
 <div class="card mb-3">
   <div class="card-header">給与内訳</div>
@@ -145,6 +177,7 @@
           ('学年給', prev_salary.grade_pay, this_salary.grade_pay),
           ('成績給', prev_salary.academic_pay, this_salary.academic_pay),
           ('家事給', prev_salary.chore_pay, this_salary.chore_pay),
+          ('ボーナス', prev_salary.bonus_pay, this_salary.bonus_pay),
           ('合計', prev_salary.total, this_salary.total),
         ] %}
         <tr {% if label == '合計' %}class="table-success fw-bold"{% endif %}>

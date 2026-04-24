@@ -114,18 +114,37 @@ def calc_academic_pay(user_id, year):
                 academic_pay += eval_map.get(eval_val, 0)
     return grade_pay, academic_pay, grade_pay + academic_pay
 
+def calc_test_bonus(user_id, year, month):
+    """その月のテスト満点ボーナスを計算（合計金額, 科目数, 科目リスト）"""
+    db = get_db()
+    month_str = f'{year}-{month:02d}'
+    rows = db.execute('''
+        SELECT item, SUM(amount) as total
+        FROM finance_records
+        WHERE user_id=? AND category='test_bonus'
+          AND strftime('%Y-%m', record_date)=?
+        GROUP BY item
+    ''', (user_id, month_str)).fetchall()
+    total = sum(r['total'] for r in rows)
+    subjects = [r['item'] for r in rows if r['item']]
+    return total, len(subjects), subjects
+
 def calc_monthly_salary(user_id, year, month):
     """月次給与の全項目を計算"""
     rates = get_pay_rates()
     base_pay = rates.get('base_pay', 100)
     grade_pay, academic_pay, total_academic = calc_academic_pay_for_month(user_id, year, month)
     chore_pay = calc_chore_pay(user_id, year, month)
-    total = base_pay + total_academic + chore_pay
+    bonus_pay, bonus_cnt, bonus_subjects = calc_test_bonus(user_id, year, month)
+    total = base_pay + total_academic + chore_pay + bonus_pay
     return {
         'base_pay': base_pay,
         'grade_pay': grade_pay,
         'academic_pay': academic_pay,
         'chore_pay': chore_pay,
+        'bonus_pay': bonus_pay,
+        'bonus_cnt': bonus_cnt,
+        'bonus_subjects': bonus_subjects,
         'total': total
     }
 
