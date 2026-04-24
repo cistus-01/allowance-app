@@ -142,14 +142,16 @@
       </tbody>
     </table>
 
-    {# テスト賞与内訳（ボーナスある場合のみ） #}
-    {% if slip.bonus_pay > 0 %}
+    {# テスト賞与内訳（常に表示） #}
     <div style="background:#fffde7; border:1px solid #f0cc50; border-radius:4px; padding:3px 10px; margin-top:4px; font-size:.85rem;">
       <span class="fw-bold">テスト賞与内訳</span>
+      {% if slip.bonus_pay > 0 %}
       <span class="ms-2">{{ slip.bonus_subjects | join('・') }}</span>
       <span class="ms-2 fw-bold">¥{{ '{:,}'.format(slip.bonus_pay) }}</span>
+      {% else %}
+      <span class="ms-2 text-muted">なし</span>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 </div>
 {% endfor %}
