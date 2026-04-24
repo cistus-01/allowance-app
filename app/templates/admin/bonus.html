@@ -1,76 +1,225 @@
 {% extends 'base.html' %}
-{% block title %}テストボーナス入力{% endblock %}
+{% block title %}ボーナス管理{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center mb-4">
   <a href="{{ url_for('home.index') }}" class="btn btn-outline-secondary btn-sm me-3">
     <i class="bi bi-arrow-left"></i>
   </a>
-  <h3 class="mb-0"><i class="bi bi-trophy me-2 text-warning"></i>テストボーナス入力</h3>
+  <h3 class="mb-0"><i class="bi bi-trophy me-2 text-warning"></i>ボーナス管理</h3>
 </div>
 
-<div class="card mb-4">
-  <div class="card-header">テスト満点ボーナスを記録（1科目 = 学年給）</div>
-  <div class="card-body">
-    <form method="post" action="{{ url_for('admin.give_bonus') }}">
-      <div class="row g-3 mb-3">
-        <div class="col-sm-4">
-          <label class="form-label small fw-bold">対象の子供</label>
-          <select name="user_id" class="form-select" required>
-            {% for child in children %}
-            <option value="{{ child.id }}">{{ child.name }}（{{ child.grade }}年・¥{{ unit_prices[child.id] }}/科目）</option>
+{# ===== タブ ===== #}
+<ul class="nav nav-tabs mb-4" id="bonusTabs">
+  <li class="nav-item">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-test">🎓 テスト満点</button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-oneshot">🎁 ワンタイム</button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-challenge">🏆 チャレンジ</button>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+  {# ===== テスト満点 ===== #}
+  <div class="tab-pane fade show active" id="tab-test">
+    <div class="card mb-4">
+      <div class="card-header">テスト満点ボーナスを記録（1科目 = 学年 × 学年給倍率）</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('admin.give_bonus') }}">
+          <div class="row g-3 mb-3">
+            <div class="col-sm-4">
+              <label class="form-label small fw-bold">対象の子供</label>
+              <select name="user_id" class="form-select" required>
+                {% for child in children %}
+                <option value="{{ child.id }}">{{ child.name }}（{{ child.grade }}年・¥{{ unit_prices[child.id] }}/科目）</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-sm-3">
+              <label class="form-label small fw-bold">テストの日付</label>
+              <input type="date" name="record_date" class="form-control" value="{{ today }}" required>
+            </div>
+            <div class="col-sm-5">
+              <label class="form-label small fw-bold">メモ（任意）</label>
+              <input type="text" name="note" class="form-control" placeholder="例: 2学期中間テスト">
+            </div>
+          </div>
+          <label class="form-label small fw-bold">満点を取った科目（複数選択可）</label>
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for s in subjects %}
+            <label class="btn btn-outline-success" style="cursor:pointer;">
+              <input type="checkbox" name="subjects" value="{{ s.name }}" class="d-none subject-check">
+              {{ s.name }}
+            </label>
             {% endfor %}
-          </select>
-        </div>
-        <div class="col-sm-3">
-          <label class="form-label small fw-bold">テストの日付</label>
-          <input type="date" name="record_date" class="form-control" value="{{ today }}" required>
-        </div>
-        <div class="col-sm-5">
-          <label class="form-label small fw-bold">メモ（任意）</label>
-          <input type="text" name="note" class="form-control" placeholder="例: 2学期中間テスト">
-        </div>
+          </div>
+          <div class="d-flex align-items-center gap-3">
+            <button type="submit" class="btn btn-warning fw-bold">
+              <i class="bi bi-trophy me-1"></i>記録する
+            </button>
+            <span class="text-muted small" id="selected-count">0科目選択中</span>
+          </div>
+        </form>
       </div>
+    </div>
+  </div>
 
-      <label class="form-label small fw-bold">満点を取った科目（複数選択可）</label>
-      <div class="d-flex flex-wrap gap-2 mb-3">
-        {% for s in subjects %}
-        <label class="btn btn-outline-success" style="cursor:pointer;">
-          <input type="checkbox" name="subjects" value="{{ s.name }}" class="d-none subject-check">
-          {{ s.name }}
-        </label>
-        {% endfor %}
+  {# ===== ワンタイムボーナス ===== #}
+  <div class="tab-pane fade" id="tab-oneshot">
+    <div class="card mb-4">
+      <div class="card-header">ワンタイムボーナスを付与（翌月の給与に反映）</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('admin.give_oneshot_bonus') }}">
+          <div class="row g-3">
+            <div class="col-sm-4">
+              <label class="form-label small fw-bold">対象の子供</label>
+              <select name="user_id" class="form-select" required>
+                {% for child in children %}
+                <option value="{{ child.id }}">{{ child.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-sm-5">
+              <label class="form-label small fw-bold">ボーナス名</label>
+              <input type="text" name="title" class="form-control" placeholder="例: お手伝い特別、発表会頑張った" required>
+            </div>
+            <div class="col-sm-3">
+              <label class="form-label small fw-bold">金額（円）</label>
+              <input type="number" name="amount" class="form-control" placeholder="500" min="1" required>
+            </div>
+            <div class="col-sm-3">
+              <label class="form-label small fw-bold">付与日</label>
+              <input type="date" name="record_date" class="form-control" value="{{ today }}">
+            </div>
+            <div class="col-sm-9">
+              <label class="form-label small fw-bold">メモ（任意）</label>
+              <input type="text" name="note" class="form-control" placeholder="理由や一言など">
+            </div>
+          </div>
+          <div class="mt-3">
+            <button type="submit" class="btn btn-primary fw-bold">
+              <i class="bi bi-gift me-1"></i>ボーナスを付与する
+            </button>
+          </div>
+        </form>
       </div>
+    </div>
+  </div>
 
-      <div class="d-flex align-items-center gap-3">
-        <button type="submit" class="btn btn-warning fw-bold">
-          <i class="bi bi-trophy me-1"></i>記録する
-        </button>
-        <span class="text-muted small" id="selected-count">0科目選択中</span>
+  {# ===== チャレンジ ===== #}
+  <div class="tab-pane fade" id="tab-challenge">
+    <div class="card mb-4">
+      <div class="card-header">新しいチャレンジを作成</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('admin.challenge_new') }}">
+          <div class="row g-3">
+            <div class="col-sm-4">
+              <label class="form-label small fw-bold">対象の子供</label>
+              <select name="user_id" class="form-select" required>
+                {% for child in children %}
+                <option value="{{ child.id }}">{{ child.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-sm-5">
+              <label class="form-label small fw-bold">チャレンジ名</label>
+              <input type="text" name="title" class="form-control" placeholder="例: 1ヶ月家事20回達成" required>
+            </div>
+            <div class="col-sm-3">
+              <label class="form-label small fw-bold">達成報酬（円）</label>
+              <input type="number" name="reward_amount" class="form-control" placeholder="500" min="1" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold">達成条件（子供に見せるテキスト・任意）</label>
+              <input type="text" name="condition" class="form-control" placeholder="例: 今月中に家事を20回やったらクリア！">
+            </div>
+          </div>
+          <div class="mt-3">
+            <button type="submit" class="btn btn-success fw-bold">
+              <i class="bi bi-flag me-1"></i>チャレンジを作成する
+            </button>
+          </div>
+        </form>
       </div>
-    </form>
+    </div>
+
+    {# チャレンジ一覧 #}
+    {% set open_chs = challenges | selectattr('status', 'equalto', 'open') | list %}
+    {% set done_chs = challenges | selectattr('status', 'equalto', 'done') | list %}
+    {% set cancelled_chs = challenges | selectattr('status', 'equalto', 'cancelled') | list %}
+
+    {% if open_chs %}
+    <h6 class="fw-bold mb-2">進行中のチャレンジ</h6>
+    {% for ch in open_chs %}
+    <div class="card mb-2 border-warning">
+      <div class="card-body py-2 px-3">
+        <div class="d-flex align-items-start gap-3">
+          <div class="flex-1">
+            <div class="fw-bold">{{ ch.title }}</div>
+            <div class="text-muted small">{{ ch.child_name }} ／ 報酬 +¥{{ '{:,}'.format(ch.reward_amount) }}</div>
+            {% if ch.condition %}<div class="text-muted small mt-1">📋 {{ ch.condition }}</div>{% endif %}
+          </div>
+          <div class="d-flex gap-2 flex-shrink-0">
+            <form method="post" action="{{ url_for('admin.challenge_complete', challenge_id=ch.id) }}"
+                  onsubmit="return confirm('「{{ ch.title }}」を達成として¥{{ ch.reward_amount }}を付与しますか？')">
+              <button class="btn btn-sm btn-success fw-bold">達成！</button>
+            </form>
+            <form method="post" action="{{ url_for('admin.challenge_cancel', challenge_id=ch.id) }}"
+                  onsubmit="return confirm('「{{ ch.title }}」をキャンセルしますか？')">
+              <button class="btn btn-sm btn-outline-secondary">取消</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="text-muted small">進行中のチャレンジはありません。</p>
+    {% endif %}
+
+    {% if done_chs %}
+    <h6 class="fw-bold mt-4 mb-2 text-muted">達成済み</h6>
+    {% for ch in done_chs %}
+    <div class="d-flex align-items-center gap-2 mb-1 text-muted small">
+      <span class="badge bg-success">達成</span>
+      <span>{{ ch.child_name }}：{{ ch.title }}（+¥{{ '{:,}'.format(ch.reward_amount) }}）</span>
+      <span class="ms-auto">{{ ch.completed_at[:10] if ch.completed_at else '' }}</span>
+    </div>
+    {% endfor %}
+    {% endif %}
+
   </div>
 </div>
 
-{# 履歴 #}
-<div class="card">
-  <div class="card-header">ボーナス履歴</div>
+{# ===== 履歴（全タブ共通） ===== #}
+<div class="card mt-4">
+  <div class="card-header">ボーナス履歴（直近100件）</div>
   <div class="card-body">
     {% if bonus_records %}
     <div class="table-responsive">
       <table class="table table-sm align-middle">
-        <thead><tr><th>日付</th><th>対象</th><th>科目</th><th>金額</th><th>メモ</th><th></th></tr></thead>
+        <thead><tr><th>日付</th><th>対象</th><th>種別</th><th>内容</th><th>金額</th><th>メモ</th><th></th></tr></thead>
         <tbody>
         {% for rec in bonus_records %}
         <tr>
           <td class="text-muted small">{{ rec.record_date }}</td>
           <td class="fw-bold">{{ rec.child_name }}</td>
-          <td><span class="badge bg-warning text-dark">{{ rec.item }}</span></td>
-          <td>+¥{{ rec.amount }}</td>
+          <td>
+            {% if rec.category == 'test_bonus' %}
+            <span class="badge bg-warning text-dark">テスト</span>
+            {% else %}
+            <span class="badge bg-primary">ボーナス</span>
+            {% endif %}
+          </td>
+          <td>{{ rec.item }}</td>
+          <td>+¥{{ '{:,}'.format(rec.amount) }}</td>
           <td class="text-muted small">{{ rec.note or '' }}</td>
           <td>
             <form method="post" action="{{ url_for('admin.delete_bonus', record_id=rec.id) }}"
-                  onsubmit="return confirm('{{ rec.child_name }}の{{ rec.item }}ボーナスを削除しますか？')">
-              <input type="hidden" name="redirect_to" value="bonus">
+                  onsubmit="return confirm('このボーナス記録を削除しますか？')">
               <button class="btn btn-sm btn-outline-danger">削除</button>
             </form>
           </td>
@@ -84,6 +233,7 @@
     {% endif %}
   </div>
 </div>
+
 {% endblock %}
 {% block scripts %}
 <script>
@@ -95,5 +245,16 @@ document.querySelectorAll('.subject-check').forEach(cb => {
     cb.closest('label').classList.toggle('btn-outline-success', !cb.checked);
   });
 });
+
+// URLハッシュでタブ復元
+const hash = location.hash;
+if (hash) {
+  const tabMap = {'#test':'tab-test','#oneshot':'tab-oneshot','#challenge':'tab-challenge'};
+  const target = tabMap[hash];
+  if (target) {
+    const tab = document.querySelector(`[data-bs-target="#${target}"]`);
+    if (tab) bootstrap.Tab.getOrCreateInstance(tab).show();
+  }
+}
 </script>
 {% endblock %}

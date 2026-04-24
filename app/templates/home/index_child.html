@@ -49,6 +49,24 @@
 {% endif %}
 
 
+{% if open_challenges %}
+<div class="mb-4">
+  <div class="text-muted small fw-bold mb-2">🏆 挑戦中のチャレンジ</div>
+  {% for ch in open_challenges %}
+  <div class="summary-box mb-2" style="border-left:4px solid var(--accent);">
+    <div class="d-flex align-items-start gap-2">
+      <span style="font-size:1.3rem;">🎯</span>
+      <div class="flex-1">
+        <div class="fw-bold">{{ ch.title }}</div>
+        {% if ch.condition %}<div class="text-muted small">{{ ch.condition }}</div>{% endif %}
+      </div>
+      <span class="badge bg-warning text-dark ms-auto flex-shrink-0">+¥{{ '{:,}'.format(ch.reward_amount) }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="row g-3">
   <div class="col-6">
     <a href="{{ url_for('chores.index') }}" class="text-decoration-none">

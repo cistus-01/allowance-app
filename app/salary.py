@@ -115,9 +115,10 @@ def calc_academic_pay(user_id, year):
     return grade_pay, academic_pay, grade_pay + academic_pay
 
 def calc_test_bonus(user_id, year, month):
-    """テスト満点ボーナスを計算。記録した前月分が今月の給料に反映される。"""
+    """ボーナス合計を計算。記録した前月分が今月の給料に反映される。
+    対象カテゴリ: test_bonus（テスト満点）/ bonus（ワンタイム・チャレンジ達成）
+    """
     db = get_db()
-    # 前月を計算
     if month == 1:
         ref_year, ref_month = year - 1, 12
     else:
@@ -126,7 +127,7 @@ def calc_test_bonus(user_id, year, month):
     rows = db.execute('''
         SELECT item, SUM(amount) as total
         FROM finance_records
-        WHERE user_id=? AND category='test_bonus'
+        WHERE user_id=? AND category IN ('test_bonus', 'bonus')
           AND strftime('%Y-%m', record_date)=?
         GROUP BY item
     ''', (user_id, month_str)).fetchall()

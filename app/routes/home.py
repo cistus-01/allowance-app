@@ -109,10 +109,16 @@ def index():
                     import math
                     days_to_goal = math.ceil(remaining / daily_total)
 
+        open_challenges = db.execute(
+            'SELECT * FROM challenges WHERE user_id=? AND status="open" ORDER BY created_at ASC',
+            (current_user.id,)
+        ).fetchall()
+
         return render_template('home/index_child.html',
                                salary=salary,
                                balance=balance,
                                today=today,
                                next_month=next_month,
                                top_goal=top_goal,
-                               days_to_goal=days_to_goal)
+                               days_to_goal=days_to_goal,
+                               open_challenges=open_challenges)

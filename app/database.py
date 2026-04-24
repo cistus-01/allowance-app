@@ -60,6 +60,23 @@ def init_db():
     if 'family_id' not in gip_cols:
         db.execute("ALTER TABLE grade_input_periods ADD COLUMN family_id INTEGER")
 
+    # チャレンジテーブル
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS challenges (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            family_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            condition TEXT,
+            reward_amount INTEGER NOT NULL,
+            status TEXT DEFAULT 'open' CHECK(status IN ('open', 'done', 'cancelled')),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            completed_at DATETIME,
+            FOREIGN KEY (family_id) REFERENCES families(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+
     # families に scheduled_delete_at 列を追加（退会予約用）
     fam_cols = [r[1] for r in db.execute("PRAGMA table_info(families)").fetchall()]
     if 'scheduled_delete_at' not in fam_cols:
