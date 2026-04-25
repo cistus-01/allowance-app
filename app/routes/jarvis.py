@@ -25,12 +25,14 @@ def import_db():
     if not b64:
         return jsonify({'error': 'db_b64 required'}), 400
     try:
+        from ..database import init_db
         raw = base64.b64decode(b64)
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
         tmp.write(raw)
         tmp.close()
         os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
         shutil.move(tmp.name, DATABASE)
+        init_db()
         return jsonify({'ok': True, 'bytes': len(raw)})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
