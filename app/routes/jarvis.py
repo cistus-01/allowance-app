@@ -25,14 +25,26 @@ def import_db():
     if not b64:
         return jsonify({'error': 'db_b64 required'}), 400
     try:
-        from ..database import init_db
+        import sqlite3 as _sqlite3
         raw = base64.b64decode(b64)
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
         tmp.write(raw)
         tmp.close()
         os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
         shutil.move(tmp.name, DATABASE)
-        init_db()
+        # マイグレーション適用（新コードで追加された列を追加）
+        conn = _sqlite3.connect(DATABASE)
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(families)").fetchall()]
+        if 'scheduled_delete_at' not in cols:
+            conn.execute("ALTER TABLE families ADD COLUMN scheduled_delete_at DATETIME")
+        if 'is_lifetime_free' not in cols:
+            conn.execute("ALTER TABLE families ADD COLUMN is_lifetime_free INTEGER DEFAULT 0")
+        ucols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if 'tutorial_done' not in ucols:
+            conn.execute("ALTER TABLE users ADD COLUMN tutorial_done INTEGER DEFAULT 0")
+        conn.execute("UPDATE families SET is_lifetime_free=1 WHERE id=(SELECT family_id FROM users WHERE username='akkun0420')")
+        conn.commit()
+        conn.close()
         return jsonify({'ok': True, 'bytes': len(raw)})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
