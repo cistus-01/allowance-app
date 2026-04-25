@@ -35,9 +35,10 @@ def _delete_family_data(db, family_id):
         db.execute(f"DELETE FROM goals WHERE user_id IN ({ph})", all_user_ids)
         db.execute(f"DELETE FROM password_reset_tokens WHERE user_id IN ({ph})", all_user_ids)
 
+    db.execute("DELETE FROM challenges WHERE family_id=?", (family_id,))
     db.execute("DELETE FROM grade_input_periods WHERE family_id=?", (family_id,))
     db.execute("DELETE FROM config_presets WHERE family_id=?", (family_id,))
-    db.execute(f"DELETE FROM users WHERE family_id=?", (family_id,))
+    db.execute("DELETE FROM users WHERE family_id=?", (family_id,))
     db.execute("DELETE FROM families WHERE id=?", (family_id,))
     db.commit()
 

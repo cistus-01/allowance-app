@@ -116,7 +116,7 @@ def calc_academic_pay(user_id, year):
 
 def calc_test_bonus(user_id, year, month):
     """ボーナス合計を計算。記録した前月分が今月の給料に反映される。
-    対象カテゴリ: test_bonus（テスト満点）/ bonus（ワンタイム・チャレンジ達成）
+    対象カテゴリ: test_bonus（テストボーナス）/ bonus（特別ボーナス・チャレンジ達成）
     """
     db = get_db()
     if month == 1:
