@@ -9,6 +9,8 @@ services:
         generateValue: true
       - key: DATABASE_PATH
         value: /data/allowance.db
+      - key: DATABASE_URL
+        sync: false
     disk:
       name: allowance-data
       mountPath: /data

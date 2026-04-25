@@ -1,44 +1,92 @@
-import sqlite3
 import os
+import sqlite3
 from flask import g, current_app
 
-DATABASE = os.environ.get('DATABASE_PATH', '/data/allowance.db')
+DATABASE_URL = os.environ.get('DATABASE_URL')           # PostgreSQL (Supabase)
+DATABASE     = os.environ.get('DATABASE_PATH', '/data/allowance.db')  # SQLite fallback
+
+USE_PG = bool(DATABASE_URL)
+
+
+# ---- 接続取得 ----
 
 def get_db():
     if 'db' not in g:
-        g.db = sqlite3.connect(DATABASE)
-        g.db.row_factory = sqlite3.Row
-        g.db.execute('PRAGMA foreign_keys = ON')
+        if USE_PG:
+            import psycopg2
+            from .db_compat import ConnWrapper
+            conn = psycopg2.connect(DATABASE_URL)
+            conn.autocommit = False
+            g.db = ConnWrapper(conn)
+        else:
+            conn = sqlite3.connect(DATABASE)
+            conn.row_factory = sqlite3.Row
+            conn.execute('PRAGMA foreign_keys = ON')
+            g.db = conn
     return g.db
+
 
 def close_db(e=None):
     db = g.pop('db', None)
     if db is not None:
         db.close()
 
+
+# ---- 初期化 ----
+
 def init_db():
+    if USE_PG:
+        _init_pg()
+    else:
+        _init_sqlite()
+    current_app.teardown_appcontext(close_db)
+
+
+def _init_pg():
+    import psycopg2
+    from .db_compat import ConnWrapper
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.autocommit = False
+    db = ConnWrapper(conn)
+
+    schema_path = os.path.join(os.path.dirname(__file__), 'schema_pg.sql')
+    with open(schema_path, 'r', encoding='utf-8') as f:
+        db.executescript(f.read())
+
+    _seed_if_empty(db)
+
+    # オーナー永久無料
+    db.execute("""
+        UPDATE families SET is_lifetime_free=1
+        WHERE id=(SELECT family_id FROM users WHERE username='akkun0420')
+    """)
+    # eval 単価修正
+    db.execute("UPDATE pay_rates SET value=50 WHERE key='eval_excellent' AND value!=50")
+    db.execute("UPDATE pay_rates SET value=15 WHERE key='eval_good' AND value!=15")
+
+    db.commit()
+    db.close()
+
+
+def _init_sqlite():
     os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
     db = sqlite3.connect(DATABASE)
     db.row_factory = sqlite3.Row
     db.execute('PRAGMA foreign_keys = ON')
 
-    # テーブル作成（CREATE TABLE IF NOT EXISTSなので冪等）
     schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
     with open(schema_path, 'r', encoding='utf-8') as f:
         db.executescript(f.read())
     db.commit()
 
-    # 初期データは各テーブルが空の時だけ挿入
     _seed_if_empty(db)
 
-    # 列がなければ追加（既存DB対応）
-    cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
-    if 'family_id' not in cols:
-        db.execute("ALTER TABLE users ADD COLUMN family_id INTEGER")
-    if 'email' not in cols:
-        db.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    # 列追加（既存DB対応）
+    for col, ddl in [('family_id', 'INTEGER'), ('email', 'TEXT'), ('tutorial_done', 'INTEGER DEFAULT 0')]:
+        cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+        if col not in cols:
+            db.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
 
-    # パスワードリセットトークンテーブル
     db.execute('''
         CREATE TABLE IF NOT EXISTS password_reset_tokens (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,17 +98,10 @@ def init_db():
         )
     ''')
 
-    # tutorial_done 列を追加（既存DB対応）
-    user_cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
-    if 'tutorial_done' not in user_cols:
-        db.execute("ALTER TABLE users ADD COLUMN tutorial_done INTEGER DEFAULT 0")
-
-    # grade_input_periods に family_id 列を追加（既存DB対応）
     gip_cols = [r[1] for r in db.execute("PRAGMA table_info(grade_input_periods)").fetchall()]
     if 'family_id' not in gip_cols:
         db.execute("ALTER TABLE grade_input_periods ADD COLUMN family_id INTEGER")
 
-    # チャレンジテーブル
     db.execute('''
         CREATE TABLE IF NOT EXISTS challenges (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,24 +118,12 @@ def init_db():
         )
     ''')
 
-    # families に scheduled_delete_at 列を追加（退会予約用）
     fam_cols = [r[1] for r in db.execute("PRAGMA table_info(families)").fetchall()]
     if 'scheduled_delete_at' not in fam_cols:
         db.execute("ALTER TABLE families ADD COLUMN scheduled_delete_at DATETIME")
     if 'is_lifetime_free' not in fam_cols:
         db.execute("ALTER TABLE families ADD COLUMN is_lifetime_free INTEGER DEFAULT 0")
 
-    # オーナーアカウントを永久無料に設定
-    db.execute("""
-        UPDATE families SET is_lifetime_free=1
-        WHERE id=(SELECT family_id FROM users WHERE username='akkun0420')
-    """)
-
-    # eval 単価の値を正しい値に強制修正（旧値150/20が残っている場合）
-    db.execute("UPDATE pay_rates SET value=50 WHERE key='eval_excellent' AND value!=50")
-    db.execute("UPDATE pay_rates SET value=15 WHERE key='eval_good' AND value!=15")
-
-    # 設定プリセットテーブル
     db.execute('''
         CREATE TABLE IF NOT EXISTS config_presets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,29 +137,33 @@ def init_db():
             UNIQUE(family_id, slot)
         )
     ''')
-    db.commit()
 
+    db.execute("""
+        UPDATE families SET is_lifetime_free=1
+        WHERE id=(SELECT family_id FROM users WHERE username='akkun0420')
+    """)
+    db.execute("UPDATE pay_rates SET value=50 WHERE key='eval_excellent' AND value!=50")
+    db.execute("UPDATE pay_rates SET value=15 WHERE key='eval_good' AND value!=15")
+
+    db.commit()
     db.close()
-    current_app.teardown_appcontext(close_db)
+
+
+# ---- シードデータ ----
 
 def _seed_if_empty(db):
-    """初期マスタデータを空の時だけ投入する。既にデータがあれば何もしない。"""
-
-    # 家事
     if db.execute("SELECT COUNT(*) FROM chore_types").fetchone()[0] == 0:
         db.executemany(
             "INSERT OR IGNORE INTO chore_types (name, unit_price, sort_order) VALUES (?, ?, ?)",
             [('掃除', 30, 1), ('洗濯', 10, 2), ('干す', 30, 3), ('洗い物', 20, 4), ('しまう', 10, 5)]
         )
 
-    # 教科
     if db.execute("SELECT COUNT(*) FROM subjects").fetchone()[0] == 0:
         db.executemany(
             "INSERT OR IGNORE INTO subjects (name, sort_order) VALUES (?, ?)",
             [('国語',1),('算数',2),('理科',3),('社会',4),('英語',5),
              ('音楽',6),('体育',7),('図工',8),('道徳',9)]
         )
-        # 全学年に割り当て
         subjects = db.execute("SELECT id FROM subjects").fetchall()
         for grade in range(1, 7):
             for s in subjects:
@@ -139,7 +172,6 @@ def _seed_if_empty(db):
                     (grade, s['id'])
                 )
 
-    # 単価
     if db.execute("SELECT COUNT(*) FROM pay_rates").fetchone()[0] == 0:
         db.executemany(
             "INSERT OR IGNORE INTO pay_rates (key, value, label) VALUES (?, ?, ?)",
