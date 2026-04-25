@@ -1,7 +1,7 @@
-import os
+import os, base64, shutil, tempfile
 from flask import Blueprint, jsonify, request
 from datetime import datetime
-from ..database import get_db
+from ..database import get_db, DATABASE
 
 bp = Blueprint('jarvis', __name__, url_prefix='/jarvis')
 
@@ -16,6 +16,25 @@ def require_key(f):
             return jsonify({'error': 'unauthorized'}), 401
         return f(*args, **kwargs)
     return decorated
+
+@bp.route('/import-db', methods=['POST'])
+@require_key
+def import_db():
+    data = request.get_json(silent=True) or {}
+    b64 = data.get('db_b64', '')
+    if not b64:
+        return jsonify({'error': 'db_b64 required'}), 400
+    try:
+        raw = base64.b64decode(b64)
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+        tmp.write(raw)
+        tmp.close()
+        os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
+        shutil.move(tmp.name, DATABASE)
+        return jsonify({'ok': True, 'bytes': len(raw)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @bp.route('/stats')
 @require_key

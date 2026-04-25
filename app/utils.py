@@ -43,6 +43,8 @@ def subscription_required(f):
         family = get_family(db)
         if family is None:
             return f(*args, **kwargs)  # デモユーザー等はそのまま通す
+        if family['is_lifetime_free']:
+            return f(*args, **kwargs)
         status = family['subscription_status']
         if status == 'active':
             return f(*args, **kwargs)

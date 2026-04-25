@@ -81,6 +81,14 @@ def init_db():
     fam_cols = [r[1] for r in db.execute("PRAGMA table_info(families)").fetchall()]
     if 'scheduled_delete_at' not in fam_cols:
         db.execute("ALTER TABLE families ADD COLUMN scheduled_delete_at DATETIME")
+    if 'is_lifetime_free' not in fam_cols:
+        db.execute("ALTER TABLE families ADD COLUMN is_lifetime_free INTEGER DEFAULT 0")
+
+    # オーナーアカウントを永久無料に設定
+    db.execute("""
+        UPDATE families SET is_lifetime_free=1
+        WHERE id=(SELECT family_id FROM users WHERE username='akkun0420')
+    """)
 
     # eval 単価の値を正しい値に強制修正（旧値150/20が残っている場合）
     db.execute("UPDATE pay_rates SET value=50 WHERE key='eval_excellent' AND value!=50")
