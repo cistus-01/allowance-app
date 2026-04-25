@@ -132,8 +132,7 @@ def calc_test_bonus(user_id, year, month):
         GROUP BY item
     ''', (user_id, month_str)).fetchall()
     total = sum(r['total'] for r in rows)
-    subjects = [r['item'] for r in rows if r['item']]
-    return total, len(subjects), subjects
+    return total, len(rows)
 
 def calc_monthly_salary(user_id, year, month):
     """月次給与の全項目を計算。家事・テストボーナスは前月分を今月に反映。"""
@@ -144,7 +143,7 @@ def calc_monthly_salary(user_id, year, month):
     prev_month = month - 1 if month > 1 else 12
     prev_year  = year if month > 1 else year - 1
     chore_pay = calc_chore_pay(user_id, prev_year, prev_month)
-    bonus_pay, bonus_cnt, bonus_subjects = calc_test_bonus(user_id, year, month)
+    bonus_pay, bonus_cnt = calc_test_bonus(user_id, year, month)
     total = base_pay + total_academic + chore_pay + bonus_pay
     return {
         'base_pay': base_pay,
@@ -153,7 +152,6 @@ def calc_monthly_salary(user_id, year, month):
         'chore_pay': chore_pay,
         'bonus_pay': bonus_pay,
         'bonus_cnt': bonus_cnt,
-        'bonus_subjects': bonus_subjects,
         'total': total
     }
 
