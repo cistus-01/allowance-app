@@ -50,6 +50,21 @@ def import_db():
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/db-check')
+@require_key
+def db_check():
+    import sqlite3 as _sqlite3
+    conn = _sqlite3.connect(DATABASE)
+    conn.row_factory = _sqlite3.Row
+    try:
+        families = conn.execute('SELECT id, name, subscription_status, is_lifetime_free FROM families').fetchall()
+        return jsonify({'families': [dict(f) for f in families]})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
 @bp.route('/stats')
 @require_key
 def stats():
