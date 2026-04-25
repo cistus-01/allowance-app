@@ -82,6 +82,10 @@ def init_db():
     if 'scheduled_delete_at' not in fam_cols:
         db.execute("ALTER TABLE families ADD COLUMN scheduled_delete_at DATETIME")
 
+    # eval 単価の値を正しい値に強制修正（旧値150/20が残っている場合）
+    db.execute("UPDATE pay_rates SET value=50 WHERE key='eval_excellent' AND value!=50")
+    db.execute("UPDATE pay_rates SET value=15 WHERE key='eval_good' AND value!=15")
+
     # 設定プリセットテーブル
     db.execute('''
         CREATE TABLE IF NOT EXISTS config_presets (

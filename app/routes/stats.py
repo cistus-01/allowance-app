@@ -43,7 +43,7 @@ def index():
     test_bonus_row = db.execute('''
         SELECT COUNT(*) as cnt, COALESCE(SUM(amount), 0) as total
         FROM finance_records
-        WHERE user_id=? AND category='test_bonus'
+        WHERE user_id=? AND category IN ('test_bonus', 'bonus')
     ''', (target_id,)).fetchone()
     test_bonus_count = test_bonus_row['cnt']
     test_bonus_total = test_bonus_row['total']

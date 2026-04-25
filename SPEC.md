@@ -1,6 +1,6 @@
 # こどもの給与帳 — アプリ仕様書
 
-> 作成日: 2026-04-24  
+> 作成日: 2026-04-24  最終更新: 2026-04-25  
 > 対象: Jarvis（次回セッション以降の引き継ぎ用）
 
 ---
@@ -16,7 +16,7 @@
 - 「お小遣い」ではなく「給与」というフレームで子供に渡す
 - 家事 = 自分の責任として毎日こなすもの（報酬は労力に応じた対価）
 - 勉強 = 将来への投資（成績が学業給として翌学期以降の給与に反映）
-- テスト満点ボーナス = 特別な努力への報酬（学年給と同単価）
+- テストボーナス = 特別な努力への報酬（学年給と同単価）
 - お金の流れを可視化することで金銭感覚を育てる
 
 ### 語彙ルール（アプリ内）
@@ -71,7 +71,7 @@ git push origin main  # → Render が自動ビルド・デプロイ
 allowance-app/
 ├── app/
 │   ├── __init__.py          # Flaskアプリ生成・Blueprint登録
-│   ├── database.py          # DB接続・init_db()・テーブル作成
+│   ├── database.py          # DB接続・init_db()・テーブル作成・マイグレーション
 │   ├── schema.sql           # CREATE TABLE 定義
 │   ├── models.py            # User クラス（Flask-Login用）
 │   ├── salary.py            # 給与計算ロジック（最重要）
@@ -88,6 +88,8 @@ allowance-app/
 │   │   ├── billing.py       # Stripe課金
 │   │   ├── register.py      # 新規登録
 │   │   ├── onboarding.py    # 登録後の初期設定ウィザード
+│   │   ├── help.py          # チュートリアル・ヘルプ
+│   │   ├── withdraw.py      # 退会フロー
 │   │   ├── seo.py           # sitemap.xml等
 │   │   ├── jarvis.py        # Jarvis用内部API（/jarvis/stats等）
 │   │   └── setup.py         # デモデータ投入・DBパッチ
@@ -102,8 +104,10 @@ allowance-app/
 │       ├── grades/          # 成績表
 │       ├── finance/         # 収支表・日別詳細
 │       ├── goals/           # ほしいものリスト
-│       ├── admin/           # 設定・給料明細・ボーナス・夏休みボーナス・単価表
+│       ├── admin/           # 設定・給料明細・ボーナス・単価表
 │       ├── stats/           # 実績・積み上げ
+│       ├── help/            # チュートリアル（tutorial.html）・ヘルプ（index.html）
+│       ├── withdraw/        # 退会（index.html・scheduled.html）
 │       └── billing/         # プラン・課金
 ```
 
@@ -122,6 +126,7 @@ allowance-app/
 | role | TEXT | 'parent' or 'child' |
 | grade | INTEGER | 子供の学年（1〜6）。親はNULL |
 | family_id | INTEGER | familiesテーブルのID |
+| tutorial_done | INTEGER | 0=未完了/1=完了（初回チュートリアル管理） |
 | created_at | DATETIME | |
 
 ### families（課金単位）
@@ -132,9 +137,10 @@ allowance-app/
 | owner_user_id | INTEGER | 親のuser_id |
 | stripe_customer_id | TEXT | |
 | stripe_subscription_id | TEXT | |
-| subscription_status | TEXT | 'trial' / 'active' / 'canceled' |
+| subscription_status | TEXT | 'trial' / 'active' / 'canceling' / 'canceled' |
 | trial_ends_at | DATETIME | |
 | plan_ends_at | DATETIME | |
+| scheduled_delete_at | DATETIME | 退会予約時のデータ削除予定日時（NULL=通常） |
 
 ### chore_types（家事定義）
 | カラム | 型 | 備考 |
@@ -187,19 +193,34 @@ allowance-app/
 | user_id | INTEGER | |
 | record_date | DATE | |
 | type | TEXT | 'income' / 'expense' |
-| category | TEXT | 給料・テストボーナス・夏休みボーナス・お年玉 等 |
-| item | TEXT | テストボーナス時は科目名 |
+| category | TEXT | 給料・テストボーナス・お年玉 等 |
+| item | TEXT | テストボーナス時は科目名、特別ボーナス時はボーナス名 |
 | amount | INTEGER | 円 |
 | note | TEXT | |
 | created_by | INTEGER | 入力者のuser_id |
 
 **categoryの予約値:**
-- `test_bonus` — テスト満点ボーナス（`/admin/bonus`から入力）
-- `summer_bonus` — 夏休みボーナス（`/admin/summer_slip`から入力）
-- それ以外は自由文字列（ユーザーが直接入力）
+- `test_bonus` — テストボーナス（`/admin/bonus` テストタブから入力）
+- `bonus` — 特別ボーナス・チャレンジ達成報酬（`/admin/bonus` 特別/チャレンジタブから入力）
+- それ以外は自由文字列（ユーザーが収支画面から直接入力）
+
+**給与計算での扱い:** `test_bonus` と `bonus` の両方が翌月の `bonus_pay` に合算される。
+
+### challenges（チャレンジ）
+| カラム | 型 | 備考 |
+|--------|----|------|
+| id | INTEGER PK | |
+| family_id | INTEGER | |
+| user_id | INTEGER | 対象の子供 |
+| title | TEXT | チャレンジ名 |
+| condition | TEXT | 達成条件（子供向け説明文、任意） |
+| reward_amount | INTEGER | 達成報酬（円） |
+| status | TEXT | 'open' / 'done' / 'cancelled' |
+| created_at | DATETIME | |
+| completed_at | DATETIME | 達成日時（done時のみ） |
 
 ### pay_rates（単価設定）
-| key | label | デフォルト値 |
+| key | label | 正しいデフォルト値 |
 |-----|-------|------------|
 | base_pay | 基本給 | ¥100 |
 | grade_pay_multiplier | 学年給（学年×） | ¥50 |
@@ -207,8 +228,7 @@ allowance-app/
 | eval_good | 成績給〇 | ¥15 |
 | eval_poor | 成績給△ | ¥0 |
 
-> **注意:** DB初期値は`eval_excellent=150, eval_good=20`のままになっている場合あり。  
-> 「デフォルトに戻す」ボタンを押すと上記の正しいデフォルト値に更新される。
+> **マイグレーション済み:** `init_db()` 内で `eval_excellent` / `eval_good` の値を正しい値に強制UPDATE。
 
 ### config_presets（設定プリセット）
 | カラム | 型 | 備考 |
@@ -256,9 +276,9 @@ allowance-app/
   'grade_pay':    int,   # 学年給（学年 × grade_pay_multiplier）
   'academic_pay': int,   # 成績給（前学期の◎〇△から算出）
   'chore_pay':    int,   # 家事報酬（前月の家事記録から算出）
-  'bonus_pay':    int,   # テストボーナス（前月記録分）
-  'bonus_cnt':    int,   # ボーナス科目数
-  'bonus_subjects': list,
+  'bonus_pay':    int,   # ボーナス合計（前月記録の test_bonus + bonus）
+  'bonus_cnt':    int,   # ボーナス件数
+  'bonus_detail': list,  # [{'item': str, 'total': int, 'category': str}, ...]
   'total':        int,   # 合計
 }
 ```
@@ -271,12 +291,12 @@ allowance-app/
 | 学年給 | 固定（毎月・学年ベース） |
 | 成績給 | **前学期**の成績を参照 |
 | 家事報酬 | **前月**の家事記録を参照 |
-| テストボーナス | **前月**に記録されたものを参照 |
+| ボーナス | **前月**に記録されたものを参照（test_bonus + bonus 両カテゴリ） |
 
 例: 2026年5月の給料 =
 - 家事報酬: 2026年4月の家事記録
 - 成績給: 2026年4月は1学期 → 前学期 = 2025年3学期の成績
-- テストボーナス: 2026年4月に記録されたもの
+- ボーナス: 2026年4月に記録されたもの
 
 ### 学期の定義（month_to_term）
 - 1〜3月 → 3学期（前年度扱い）
@@ -301,11 +321,12 @@ allowance-app/
 **親ログイン時:** index_parent.html
 - 子供切り替えボタン（今日の家事チェック数バッジ付き）
 - 来月の給料予定・現在の所持金
-- メニュータイル（日常操作・ボーナス・確認分析）
+- メニュータイル（日常操作・ボーナス管理・確認分析）
 
 **子供ログイン時:** index_child.html
 - 来月の給料予定・現在の所持金
 - ほしいものゴール進捗バー（設定時のみ）
+- 進行中のチャレンジ一覧（条件・報酬額）
 - メニュータイル4つ（家事・成績・収支・実績）
 
 ### 家事カレンダー（/chores/）
@@ -334,7 +355,8 @@ allowance-app/
 - 子供ホームの先頭にも最優先目標が表示される
 
 ### 実績・積み上げ（/stats/）
-- 4枚のサマリーカード（総家事回数・家事累計収入・テスト100点回数・ボーナス累計）
+- 4枚のサマリーカード（総家事回数・家事累計収入・ボーナス回数・ボーナス累計）
+  - ボーナス累計は `test_bonus` + `bonus` の両カテゴリを合算
 - 直近6ヶ月の給料推移バーグラフ（過去5ヶ月 + 来月予定。来月は黄色）
 - 今月の家事日数・達成率・先月比
 - 最新学期の成績内訳（◎〇△ カウント + プログレスバー）
@@ -349,6 +371,7 @@ allowance-app/
 - **プロフィール:** 親の名前・ログインID・メール・パスワード・家族名変更
 - **設定プリセット:** スロット1〜3に現在の設定を保存・呼び出し
 - **デフォルトに戻す:** admin.pyの`_DEFAULT_*`定数値に一括リセット
+- **退会リンク:** ページ下部から `/withdraw/` へ
 
 ### 単価表（/admin/rates）※親専用
 - 現在の家事単価一覧
@@ -356,17 +379,50 @@ allowance-app/
 
 ### 給料明細（/admin/payslip）※親専用
 - 全子供の月次給料明細を印刷用フォーマットで表示
-- 家事項目別件数・報酬・ボーナス内訳
+- 基本給・学年給・成績給・ボーナス合計
+- 家事項目別件数・報酬
+- **ボーナス内訳:** 科目名/ボーナス名と金額付きで表示（例: 算数（¥200）・発表会頑張った（¥500））
 - 月ナビゲーション付き
 
-### テストボーナス入力（/admin/bonus）※親専用
-- 子供を選択 → 教科（複数選択可）→ 日付 → 記録
-- 1科目あたりの単価 = 学年 × grade_pay_multiplier（学年給と同じ）
-- 記録一覧・削除機能あり
+### ボーナス管理（/admin/bonus）※親専用
+3タブ構成:
 
-### 夏休みボーナス明細（/admin/summer_slip）※親専用
-- 夏休み開始日を入力 → 14日以内に全宿題完了で前月給料相当のボーナス
-- 付与ボタンで finance_records に `category='summer_bonus'` として記録
+**🎓 テストボーナスタブ:**
+- 子供選択 → 点数（任意）→ 1科目あたりの金額（子供切り替えで自動更新）→ 科目複数選択 → 記録
+- category=`test_bonus` として finance_records に保存（科目ごとに1レコード）
+
+**🎁 特別ボーナスタブ:**（旧: ワンタイムボーナス）
+- ボーナス名・金額・日付を自由入力
+- category=`bonus` として finance_records に保存
+
+**🏆 チャレンジタブ:**
+- 条件・報酬額を設定 → 子供ホームに表示
+- 親が「達成！」ボタン → category=`bonus` として finance_records に記録 + challenges.status='done'
+- 編集（Bootstrapモーダル・対象の子供変更対応）・コピー・削除
+
+**共通:**
+- ボーナス履歴（直近100件）を下部に表示
+- 操作後はハッシュ（`#test` / `#special` / `#challenge`）でタブ位置を保持
+
+### チュートリアル（/help/tutorial）
+- 初回ログイン時に自動リダイレクト（`tutorial_done=0` のユーザー）
+- 🐥キャラクターの吹き出しスライド形式
+  - 親: 5枚（家事報酬・成績給・ボーナス・支払い・テスト）
+  - 子供: 4枚（家事・成績・収支・ほしいもの）
+- 完了 / スキップ → `tutorial_done=1` をDBに保存してホームへ
+
+### ヘルプ（/help/）
+- アコーディオンFAQ（給与の仕組み・家事・成績・ボーナス・収支・ほしいもの・設定）
+- 🐥キャラクター吹き出し付き
+- ナビバー（デスクトップ・ハンバーガー）に「❓ ヘルプ」リンク（親・子共通）
+
+### 退会（/withdraw/）※親専用
+- `/withdraw/` — 「退会する」と入力しないとボタン非活性（JS）
+- サブスク有効中 → Stripe `cancel_at_period_end=True` → `subscription_status='canceling'`、`scheduled_delete_at` を設定
+- トライアル/未契約 → 即時全データ削除
+- `/withdraw/scheduled` — 退会予定日確認・退会キャンセルも可能
+  - キャンセル → Stripe `cancel_at_period_end=False` → `subscription_status='active'`、`scheduled_delete_at=NULL`
+- Stripe webhook（subscription.deleted）→ `canceling` 中なら自動データ削除
 
 ### プラン・課金（/billing/）※親専用
 - 現在のサブスクリプション状態表示
@@ -378,6 +434,11 @@ allowance-app/
 - `/auth/forgot` — パスワードリセット申請（メール送信）
 - `/auth/reset/<token>` — パスワード再設定
 - `/register/` — 新規登録（30日トライアル開始）
+
+**新規登録フロー（重要）:**
+1. 親ユーザーを先に作成（family_id=NULL）
+2. families テーブルに owner_user_id=上記のuser_id で作成
+3. ユーザーの family_id を更新
 
 ---
 
@@ -434,8 +495,8 @@ allowance-app/
 ## 9. ナビゲーション構成
 
 ### デスクトップ（ナビバー）
-**親:** ホーム・家事・成績・テストボーナス・収支・給料明細  
-**子供:** ホーム・家事・成績・収支・ほしいもの・実績
+**親:** ホーム・家事・成績・ボーナス管理・収支・給料明細・❓ヘルプ  
+**子供:** ホーム・家事・成績・収支・ほしいもの・実績・❓ヘルプ
 
 ### スマホ（ボトムナビ、5タブ）
 **親:** ホーム・家事・ボーナス・給料明細・設定  
@@ -445,19 +506,21 @@ allowance-app/
 
 ## 10. 注意事項・既知の挙動
 
-1. **家事報酬の月ズレ:** ホーム画面の「来月の給料予定」は、実際には「今月の家事を来月の給料計算に当てはめた予測」ではなく、「前月の家事記録をベースにした来月給与の計算」。来月分だから今月の家事は反映されない。
+1. **家事報酬の月ズレ:** ホーム画面の「来月の給料予定」は実際には「前月の家事記録をベースにした来月給与の計算」。来月分だから今月の家事は反映されない。
 
 2. **成績給の学期ズレ:** 4月に通知表をもらっても、それは1学期の成績なので8月（2学期）の給与から反映される。学期内は前学期の成績で固定。
 
-3. **テストボーナスの月ズレ:** テストボーナスを記録した翌月の給料に反映される（calc_test_bonusは前月の記録を参照）。
+3. **ボーナスの月ズレ:** テストボーナス・特別ボーナス・チャレンジ達成を記録した翌月の給料に反映される（calc_test_bonus は前月の記録を参照）。
 
-4. **compare blueprint** は廃止済み（ファイルは残存するが__init__.pyに登録されていない）。compare/のテンプレートも残存しているが未使用。
+4. **家事の分割払い:** 同日・同家事を複数人でやった場合は `unit_price // 人数` で整数除算。端数は切り捨て。
 
-5. **家事の分割払い:** 同日・同家事を複数人でやった場合は `unit_price // 人数` で整数除算。端数は切り捨て。
+5. **grade_input_periods の制約:** UNIQUE(year, term) 制約が残存（family_id追加済みだが制約変更不可）。複数家族が同year/termを登録しようとすると制約エラー → 将来的にテーブル再作成が必要。
 
-6. **DB初期値とデフォルト値の乖離:** `_seed_if_empty()` の初期値（eval_excellent=150）と`_DEFAULT_PAY_RATES`（eval_excellent=50）が異なる。新規登録時はseed値が入り、デフォルトに戻すと50に更新される。
+6. **pay_rates・chore_types・subjects がグローバル共有:** 現在シングルファミリー運用のため実害なし。2家族目が登録すると同じ家事・単価・教科が表示される。将来のマルチテナント対応には設計見直しが必要。
 
-7. **subjects の is_active:** schema.sql には `is_active` カラムがあるが、初期SQLにない場合あり。ALTER TABLE で追加される可能性に注意。
+7. **salary_payments テーブル:** 未使用（将来の支払い記録機能用に残置）。
+
+8. **パスワードリセット:** SMTP 環境変数未設定時は画面表示フォールバック。
 
 ---
 
@@ -491,10 +554,4 @@ allowance-app/
 - `salary_payments` テーブルは未使用（将来の支払い記録機能用に残置）
 - subjects の is_active カラムは schema.sql に明示なし（init_db の ALTER TABLE で追加）
 - パスワードリセットメールは SMTP 環境変数未設定時は画面表示フォールバック
-
-## 15. 次回実装予定
-
-- [ ] ボーナス管理の柔軟化（反映型・単発型をユーザーが自由定義）
-- [ ] チュートリアル画面（初回ログイン時・かわいいキャラクター）
-- [ ] ヘルプページ
-- [ ] 退会機能（Stripe解約 + 全データ削除）
+- pay_rates・chore_types・subjects・grade_subjects はファミリーをまたいでグローバル共有（マルチテナント未対応）
