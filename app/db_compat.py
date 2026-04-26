@@ -1,13 +1,24 @@
 """psycopg2 を sqlite3 と同じインターフェースで使うための互換レイヤー"""
 import re
+import datetime as _dt
+import decimal as _decimal
+
+
+def _normalize(v):
+    """psycopg2が返すPythonオブジェクトをsqlite3互換の型に変換"""
+    if isinstance(v, (_dt.datetime, _dt.date)):
+        return v.isoformat()
+    if isinstance(v, _decimal.Decimal):
+        return int(v)
+    return v
 
 
 class Row:
     """sqlite3.Row 互換: row['key'] も row[0] も使える"""
     def __init__(self, keys, values):
         self._keys = keys
-        self._values = values
-        self._dict = dict(zip(keys, values))
+        self._values = [_normalize(v) for v in values]
+        self._dict = dict(zip(keys, self._values))
 
     def __getitem__(self, key):
         if isinstance(key, int):
