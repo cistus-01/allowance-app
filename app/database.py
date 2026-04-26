@@ -2,23 +2,24 @@ import os
 import sqlite3
 from flask import g, current_app
 
-DATABASE_URL = os.environ.get('DATABASE_URL')           # PostgreSQL (Supabase)
-DATABASE     = os.environ.get('DATABASE_PATH', '/data/allowance.db')  # SQLite fallback
+DATABASE_URL = os.environ.get('DATABASE_URL')
+DATABASE     = os.environ.get('DATABASE_PATH', '/data/allowance.db')
 
 USE_PG = bool(DATABASE_URL)
-_pg_available = False   # init_db() 後に確定
+_pg_available = False
+_pg_pool = None   # ThreadedConnectionPool（起動時に1回だけ作成）
 
 
 # ---- 接続取得 ----
 
 def get_db():
     if 'db' not in g:
-        if _pg_available:
-            import psycopg2
+        if _pg_available and _pg_pool:
             from .db_compat import ConnWrapper
-            conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
+            conn = _pg_pool.getconn()
             conn.autocommit = False
             g.db = ConnWrapper(conn)
+            g._pg_conn = conn   # close_db で返却するために保持
         else:
             conn = sqlite3.connect(DATABASE)
             conn.row_factory = sqlite3.Row
@@ -30,22 +31,35 @@ def get_db():
 def close_db(e=None):
     db = g.pop('db', None)
     if db is not None:
-        db.close()
+        if _pg_pool and hasattr(g, '_pg_conn'):
+            try:
+                g._pg_conn.rollback()   # 未コミットをロールバック
+                _pg_pool.putconn(g._pg_conn)
+            except Exception:
+                pass
+            g.pop('_pg_conn', None)
+        else:
+            db.close()
 
 
 # ---- 初期化 ----
 
 def init_db():
-    global _pg_available
+    global _pg_available, _pg_pool
     if USE_PG:
         try:
+            import psycopg2.pool
+            _pg_pool = psycopg2.pool.ThreadedConnectionPool(
+                minconn=1, maxconn=5, dsn=DATABASE_URL, connect_timeout=10
+            )
             _init_pg()
             _pg_available = True
-            print('[DB] PostgreSQL (Supabase) 接続OK', flush=True)
+            print('[DB] PostgreSQL 接続OK（接続プール確立）', flush=True)
         except Exception as e:
             print(f'[DB] PostgreSQL 接続失敗: {e}', flush=True)
             print('[DB] SQLite フォールバックで起動します', flush=True)
             _pg_available = False
+            _pg_pool = None
             _init_sqlite()
     else:
         _pg_available = False
@@ -54,9 +68,8 @@ def init_db():
 
 
 def _init_pg():
-    import psycopg2
     from .db_compat import ConnWrapper
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = _pg_pool.getconn()
     conn.autocommit = False
     db = ConnWrapper(conn)
 
@@ -76,7 +89,7 @@ def _init_pg():
     db.execute("UPDATE pay_rates SET value=15 WHERE key='eval_good' AND value!=15")
 
     db.commit()
-    db.close()
+    _pg_pool.putconn(conn)
 
 
 def _init_sqlite():
