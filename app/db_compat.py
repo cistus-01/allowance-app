@@ -122,6 +122,12 @@ def _adapt(sql, params):
     sql = re.sub(r"datetime\s*\(\s*'now'\s*\)", 'NOW()', sql, flags=re.IGNORECASE)
     sql = re.sub(r"date\s*\(\s*'now'\s*\)", 'CURRENT_DATE', sql, flags=re.IGNORECASE)
 
+    # strftime → TO_CHAR（長い形式を先に変換）
+    sql = re.sub(r"strftime\s*\(\s*'%Y-%m-%d'\s*,\s*([\w.]+)\s*\)", r"TO_CHAR(\1, 'YYYY-MM-DD')", sql, flags=re.IGNORECASE)
+    sql = re.sub(r"strftime\s*\(\s*'%Y-%m'\s*,\s*([\w.]+)\s*\)",    r"TO_CHAR(\1, 'YYYY-MM')",    sql, flags=re.IGNORECASE)
+    sql = re.sub(r"strftime\s*\(\s*'%Y'\s*,\s*([\w.]+)\s*\)",        r"TO_CHAR(\1, 'YYYY')",       sql, flags=re.IGNORECASE)
+    sql = re.sub(r"strftime\s*\(\s*'%m'\s*,\s*([\w.]+)\s*\)",        r"TO_CHAR(\1, 'MM')",         sql, flags=re.IGNORECASE)
+
     return sql, params
 
 
