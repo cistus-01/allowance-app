@@ -115,7 +115,7 @@ def delete_user(user_id):
     if not verify_child_ownership(db, user_id):
         flash('権限がありません。', 'danger')
         return redirect(url_for('admin.index'))
-    db.execute('DELETE FROM users WHERE id=? AND role="child"', (user_id,))
+    db.execute("DELETE FROM users WHERE id=? AND role='child'", (user_id,))
     db.commit()
     flash('削除しました。', 'success')
     return redirect(url_for('admin.index'))
@@ -355,7 +355,7 @@ def payslip():
 
 def _grade_pay_unit(db, user_id):
     """その子の学年給（= テストボーナス1科目の単価）を返す"""
-    multiplier = db.execute('SELECT value FROM pay_rates WHERE key="grade_pay_multiplier"').fetchone()
+    multiplier = db.execute("SELECT value FROM pay_rates WHERE key='grade_pay_multiplier'").fetchone()
     m = multiplier['value'] if multiplier else 50
     user = db.execute('SELECT grade FROM users WHERE id=?', (user_id,)).fetchone()
     grade = user['grade'] if user and user['grade'] else 1
@@ -509,13 +509,13 @@ def challenge_complete(challenge_id):
     db = get_db()
     family = get_family(db)
     ch = db.execute(
-        'SELECT * FROM challenges WHERE id=? AND family_id=? AND status="open"',
+        "SELECT * FROM challenges WHERE id=? AND family_id=? AND status='open'",
         (challenge_id, family['id'] if family else -1)
     ).fetchone()
     if not ch:
         flash('チャレンジが見つかりません。', 'danger')
         return redirect(url_for('admin.bonus') + '#challenge')
-    db.execute('UPDATE challenges SET status="done", completed_at=? WHERE id=?',
+    db.execute("UPDATE challenges SET status='done', completed_at=? WHERE id=?",
                (datetime.utcnow().isoformat(), challenge_id))
     db.execute('''
         INSERT INTO finance_records (user_id, record_date, type, category, item, amount, note, created_by)
@@ -606,13 +606,13 @@ def challenge_cancel(challenge_id):
     db = get_db()
     family = get_family(db)
     ch = db.execute(
-        'SELECT * FROM challenges WHERE id=? AND family_id=? AND status="open"',
+        "SELECT * FROM challenges WHERE id=? AND family_id=? AND status='open'",
         (challenge_id, family['id'] if family else -1)
     ).fetchone()
     if not ch:
         flash('チャレンジが見つかりません。', 'danger')
         return redirect(url_for('admin.bonus') + '#challenge')
-    db.execute('UPDATE challenges SET status="cancelled" WHERE id=?', (challenge_id,))
+    db.execute("UPDATE challenges SET status='cancelled' WHERE id=?", (challenge_id,))
     db.commit()
     flash(f'チャレンジ「{ch["title"]}」をキャンセルしました。', 'info')
     return redirect(url_for('admin.bonus') + '#challenge')

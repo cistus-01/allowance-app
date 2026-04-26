@@ -110,7 +110,7 @@ def index():
                     days_to_goal = math.ceil(remaining / daily_total)
 
         open_challenges = db.execute(
-            'SELECT * FROM challenges WHERE user_id=? AND status="open" ORDER BY created_at ASC',
+            "SELECT * FROM challenges WHERE user_id=? AND status='open' ORDER BY created_at ASC",
             (current_user.id,)
         ).fetchall()
 

@@ -55,7 +55,7 @@ def stats():
     now = datetime.utcnow()
 
     families = db.execute('SELECT * FROM families ORDER BY created_at DESC').fetchall()
-    users = db.execute('SELECT * FROM users WHERE role="parent" ORDER BY created_at DESC').fetchall()
+    users = db.execute("SELECT * FROM users WHERE role='parent' ORDER BY created_at DESC").fetchall()
 
     trial_active = []
     trial_expired = []

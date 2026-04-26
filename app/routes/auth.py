@@ -80,7 +80,7 @@ def forgot():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         db = get_db()
-        row = db.execute('SELECT * FROM users WHERE email = ? AND role = "parent"', (email,)).fetchone()
+        row = db.execute("SELECT * FROM users WHERE email = ? AND role = 'parent'", (email,)).fetchone()
         if row:
             token = secrets.token_urlsafe(32)
             expires = datetime.utcnow() + timedelta(hours=1)
