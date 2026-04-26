@@ -6,16 +6,17 @@ DATABASE_URL = os.environ.get('DATABASE_URL')           # PostgreSQL (Supabase)
 DATABASE     = os.environ.get('DATABASE_PATH', '/data/allowance.db')  # SQLite fallback
 
 USE_PG = bool(DATABASE_URL)
+_pg_available = False   # init_db() 後に確定
 
 
 # ---- 接続取得 ----
 
 def get_db():
     if 'db' not in g:
-        if USE_PG:
+        if _pg_available:
             import psycopg2
             from .db_compat import ConnWrapper
-            conn = psycopg2.connect(DATABASE_URL)
+            conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
             conn.autocommit = False
             g.db = ConnWrapper(conn)
         else:
@@ -35,9 +36,19 @@ def close_db(e=None):
 # ---- 初期化 ----
 
 def init_db():
+    global _pg_available
     if USE_PG:
-        _init_pg()
+        try:
+            _init_pg()
+            _pg_available = True
+            print('[DB] PostgreSQL (Supabase) 接続OK', flush=True)
+        except Exception as e:
+            print(f'[DB] PostgreSQL 接続失敗: {e}', flush=True)
+            print('[DB] SQLite フォールバックで起動します', flush=True)
+            _pg_available = False
+            _init_sqlite()
     else:
+        _pg_available = False
         _init_sqlite()
     current_app.teardown_appcontext(close_db)
 
