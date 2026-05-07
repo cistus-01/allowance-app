@@ -1,109 +1,121 @@
 {% extends 'base.html' %}
-{% block title %}こどもの給与帳{% endblock %}
+{% block title %}ホーム — こどもの給与帳{% endblock %}
 {% block content %}
-<h2 class="mb-1">{{ current_user.name }}のページ</h2>
-<p class="text-muted mb-3">{{ today.year }}年{{ today.month }}月</p>
 
-<div class="row g-3 mb-4">
-  <div class="col-6">
-    <div class="summary-box text-center">
-      <div class="text-muted small">{{ next_month }}月の給料予定</div>
-      <div class="amount">¥{{ '{:,}'.format(salary.total) }}</div>
-    </div>
-  </div>
-  <div class="col-6">
-    <div class="summary-box text-center">
-      <div class="text-muted small">現在の所持金</div>
-      <div class="amount {% if balance < 0 %}text-danger{% endif %}">
+<div class="row g-3 g-lg-4">
+
+  {# ===== 左カラム: ヒーロー + 目標 ===== #}
+  <div class="col-12 col-lg-5">
+
+    {# ウォレットヒーロー #}
+    <div class="home-hero mb-3">
+      <div class="hero-label">{{ current_user.name }}のおさいふ · {{ today.year }}年{{ today.month }}月</div>
+      <div class="hero-amount {% if balance < 0 %}negative{% endif %} mt-1">
         ¥{{ '{:,}'.format(balance) }}
       </div>
+      <div class="d-flex align-items-center gap-2 mt-2" style="opacity:.85; font-size:.82rem;">
+        <i class="bi bi-arrow-up-circle-fill text-success"></i>
+        <span>{{ next_month }}月の給料予定：<strong>¥{{ '{:,}'.format(salary.total) }}</strong></span>
+      </div>
     </div>
-  </div>
-</div>
 
-{% if top_goal %}
-<a href="{{ url_for('goals.index') }}" class="text-decoration-none">
-  <div class="summary-box mb-3" style="border-left: 4px solid var(--primary);">
-    <div class="d-flex align-items-center gap-2 mb-1">
-      <span style="font-size:1.4rem">{{ top_goal.emoji }}</span>
-      <div class="fw-bold">{{ top_goal.name }}</div>
-      {% set remaining = top_goal.target_amount - balance %}
-      {% if remaining <= 0 %}
-      <span class="badge bg-success ms-auto">もう買える！🎉</span>
-      {% else %}
-      <span class="badge bg-warning text-dark ms-auto">あと¥{{ '{:,}'.format(remaining) }}</span>
-      {% endif %}
-    </div>
+    {# 目標カード #}
+    {% if top_goal %}
+    {% set remaining = top_goal.target_amount - balance %}
     {% set pct = [[((balance / top_goal.target_amount) * 100) | int, 0] | max, 100] | min %}
-    <div class="progress" style="height:10px;">
-      <div class="progress-bar bg-success" style="width:{{ pct }}%"></div>
-    </div>
-    <div class="d-flex justify-content-between mt-1">
-      <div class="text-muted small">{{ pct }}% たまった（目標 ¥{{ '{:,}'.format(top_goal.target_amount) }}）</div>
-      {% if days_to_goal and remaining > 0 %}
-      <div class="text-muted small">毎日頑張れば あと<strong>{{ days_to_goal }}日</strong>！</div>
-      {% endif %}
-    </div>
-  </div>
-</a>
-{% endif %}
-
-
-{% if open_challenges %}
-<div class="mb-4">
-  <div class="text-muted small fw-bold mb-2">🏆 挑戦中のチャレンジ</div>
-  {% for ch in open_challenges %}
-  <div class="summary-box mb-2" style="border-left:4px solid var(--accent);">
-    <div class="d-flex align-items-start gap-2">
-      <span style="font-size:1.3rem;">🎯</span>
-      <div class="flex-1">
-        <div class="fw-bold">{{ ch.title }}</div>
-        {% if ch.condition %}<div class="text-muted small">{{ ch.condition }}</div>{% endif %}
+    <a href="{{ url_for('goals.index') }}" class="goal-card mb-3 d-block">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span style="font-size:1.6rem; line-height:1;">{{ top_goal.emoji }}</span>
+        <div>
+          <div class="fw-bold" style="font-size:.95rem;">{{ top_goal.name }}</div>
+          <div class="text-muted" style="font-size:.75rem;">目標 ¥{{ '{:,}'.format(top_goal.target_amount) }}</div>
+        </div>
+        <div class="ms-auto text-end">
+          {% if remaining <= 0 %}
+          <span class="badge" style="background:var(--primary); font-size:.75rem;">もう買える！🎉</span>
+          {% else %}
+          <span class="badge bg-warning text-dark" style="font-size:.75rem;">あと¥{{ '{:,}'.format(remaining) }}</span>
+          {% endif %}
+        </div>
       </div>
-      <span class="badge bg-warning text-dark ms-auto flex-shrink-0">+¥{{ '{:,}'.format(ch.reward_amount) }}</span>
-    </div>
+      <div class="goal-progress mb-1">
+        <div class="bar" style="width:{{ pct }}%;"></div>
+      </div>
+      <div class="d-flex justify-content-between" style="font-size:.72rem; color:#6b7280;">
+        <span>{{ pct }}% たまった</span>
+        {% if days_to_goal and remaining > 0 %}
+        <span>全力でやれば あと<strong>{{ days_to_goal }}日</strong>！</span>
+        {% endif %}
+      </div>
+    </a>
+    {% else %}
+    <a href="{{ url_for('goals.index') }}" class="goal-card mb-3 d-block" style="border-color:#d1d5db; border-style:dashed;">
+      <div class="d-flex align-items-center gap-2 text-muted">
+        <span style="font-size:1.4rem;">🎯</span>
+        <span style="font-size:.88rem;">ほしいものを登録してみよう</span>
+        <i class="bi bi-chevron-right ms-auto"></i>
+      </div>
+    </a>
+    {% endif %}
+
   </div>
-  {% endfor %}
+
+  {# ===== 右カラム: チャレンジ + メニュータイル ===== #}
+  <div class="col-12 col-lg-7">
+
+    {# チャレンジ #}
+    {% if open_challenges %}
+    <div class="mb-3">
+      <div class="fw-bold mb-2" style="font-size:.8rem; color:#6b7280;">🏆 挑戦中のチャレンジ</div>
+      {% for ch in open_challenges %}
+      <div class="challenge-card {% if not loop.last %}mb-2{% endif %}">
+        <div class="d-flex align-items-center gap-2">
+          <span style="font-size:1.2rem;">🎯</span>
+          <div class="flex-1 min-w-0">
+            <div class="fw-bold" style="font-size:.88rem;">{{ ch.title }}</div>
+            {% if ch.condition %}<div class="text-muted" style="font-size:.73rem;">{{ ch.condition }}</div>{% endif %}
+          </div>
+          <span class="badge bg-warning text-dark flex-shrink-0">+¥{{ '{:,}'.format(ch.reward_amount) }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# メニュータイル #}
+    <div class="row g-2">
+      <div class="col-6">
+        <a href="{{ url_for('chores.index') }}" class="menu-tile w-100">
+          <i class="bi bi-check2-square tile-icon text-success"></i>
+          <div class="tile-label">家事の確認</div>
+          <div class="tile-sub">今日のタスクをチェック</div>
+        </a>
+      </div>
+      <div class="col-6">
+        <a href="{{ url_for('grades.index') }}" class="menu-tile w-100">
+          <i class="bi bi-star-fill tile-icon text-warning"></i>
+          <div class="tile-label">成績の確認</div>
+          <div class="tile-sub">学業給を確認</div>
+        </a>
+      </div>
+      <div class="col-6">
+        <a href="{{ url_for('finance.index') }}" class="menu-tile w-100">
+          <i class="bi bi-wallet2 tile-icon" style="color:var(--primary)"></i>
+          <div class="tile-label">私の収支表</div>
+          <div class="tile-sub">収入・支出を記録</div>
+        </a>
+      </div>
+      <div class="col-6">
+        <a href="{{ url_for('stats.index') }}" class="menu-tile w-100">
+          <i class="bi bi-bar-chart-fill tile-icon text-info"></i>
+          <div class="tile-label">実績・積み上げ</div>
+          <div class="tile-sub">頑張りを振り返ろう</div>
+        </a>
+      </div>
+    </div>
+
+  </div>
+
 </div>
-{% endif %}
 
-<div class="row g-3">
-  <div class="col-6">
-    <a href="{{ url_for('chores.index') }}" class="text-decoration-none">
-      <div class="card h-100 text-center p-3" style="cursor:pointer;">
-        <i class="bi bi-check2-square fs-1 text-success mb-2"></i>
-        <div class="fw-bold">家事の確認・入力</div>
-        <div class="text-muted small">今日の家事をチェック</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-6">
-    <a href="{{ url_for('grades.index') }}" class="text-decoration-none">
-      <div class="card h-100 text-center p-3" style="cursor:pointer;">
-        <i class="bi bi-star-fill fs-1 text-warning mb-2"></i>
-        <div class="fw-bold">成績の確認</div>
-        <div class="text-muted small">学業給を確認</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-6">
-    <a href="{{ url_for('finance.index') }}" class="text-decoration-none">
-      <div class="card h-100 text-center p-3" style="cursor:pointer;">
-        <i class="bi bi-wallet2 fs-1 text-primary mb-2"></i>
-        <div class="fw-bold">私の収支表</div>
-        <div class="text-muted small">収入・支出を記録</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-6">
-    <a href="{{ url_for('stats.index') }}" class="text-decoration-none">
-      <div class="card h-100 text-center p-3" style="cursor:pointer;">
-        <i class="bi bi-bar-chart-fill fs-1 text-info mb-2"></i>
-        <div class="fw-bold">実績・積み上げ</div>
-        <div class="text-muted small">頑張りを振り返ろう</div>
-      </div>
-    </a>
-  </div>
-</div>
 {% endblock %}
-

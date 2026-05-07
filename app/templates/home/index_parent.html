@@ -1,104 +1,149 @@
 {% extends 'base.html' %}
-{% block title %}こどもの給与帳{% endblock %}
+{% block title %}ホーム — こどもの給与帳{% endblock %}
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-3">
-  <h2 class="mb-0">ホーム</h2>
-  <div class="d-flex gap-2">
-    <a href="{{ url_for('admin.payslip') }}" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-printer me-1"></i>給料明細
-    </a>
-    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-gear me-1"></i>設定
-    </a>
-  </div>
-</div>
 
-{# 子供切り替えボタン #}
+{# 子供タブ #}
 {% if children %}
 <div class="d-flex flex-wrap gap-2 mb-3">
   {% for child in children %}
+  {% set cnt = chore_counts_today.get(child.id, 0) %}
   <a href="{{ url_for('home.index', child_id=child.id) }}"
-     class="btn {% if child.id == selected_id %}btn-primary{% else %}btn-outline-primary{% endif %} fw-bold px-3 position-relative">
+     class="child-tab {% if child.id == selected_id %}active{% else %}inactive{% endif %}">
     {{ child.name }}（{{ child.grade }}年）
-    {% set cnt = chore_counts_today.get(child.id, 0) %}
-    {% if cnt > 0 %}
-    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="font-size:.65rem;">{{ cnt }}</span>
-    {% endif %}
+    {% if cnt > 0 %}<span class="tab-badge">{{ cnt }}</span>{% endif %}
   </a>
   {% endfor %}
 </div>
 {% endif %}
 
 {% if selected_child %}
-<p class="text-muted mb-3">{{ today.year }}年{{ today.month }}月</p>
-<div class="row g-3 mb-3">
-  <div class="col-6">
-    <div class="summary-box text-center">
-      <div class="text-muted small">{{ next_month }}月の給料予定</div>
-      <div class="amount">¥{{ '{:,}'.format(salary.total) }}</div>
-    </div>
-  </div>
-  <div class="col-6">
-    <div class="summary-box text-center">
-      <div class="text-muted small">現在の所持金</div>
-      <div class="amount {% if balance < 0 %}text-danger{% endif %}">
-        ¥{{ '{:,}'.format(balance) }}
+
+<div class="row g-3 g-lg-4">
+
+  {# ===== 左カラム: ヒーロー + メインアクション ===== #}
+  <div class="col-12 col-lg-8">
+
+    {# ヒーローカード #}
+    <div class="home-hero mb-3">
+      <div class="hero-label mb-1">{{ selected_child.name }} · {{ today.year }}年{{ today.month }}月</div>
+      <div class="d-flex align-items-stretch gap-3">
+        <div class="flex-1">
+          <div class="hero-label">{{ next_month }}月の給料予定</div>
+          <div class="hero-amount">¥{{ '{:,}'.format(salary.total) }}</div>
+        </div>
+        <div class="hero-divider"></div>
+        <div class="flex-1">
+          <div class="hero-label">現在の所持金</div>
+          <div class="hero-amount {% if balance < 0 %}negative{% endif %}">
+            ¥{{ '{:,}'.format(balance) }}
+          </div>
+        </div>
       </div>
     </div>
+
+    {# プライマリアクション: 家事・成績 #}
+    <div class="row g-2">
+      <div class="col-6">
+        <a href="{{ url_for('chores.index', child_id=selected_id) }}" class="menu-tile w-100">
+          <i class="bi bi-check2-square tile-icon text-success"></i>
+          <div class="tile-label">家事の確認</div>
+          <div class="tile-sub">今日のタスクを入力</div>
+        </a>
+      </div>
+      <div class="col-6">
+        <a href="{{ url_for('grades.index', child_id=selected_id) }}" class="menu-tile w-100">
+          <i class="bi bi-star-fill tile-icon text-warning"></i>
+          <div class="tile-label">成績の確認</div>
+          <div class="tile-sub">学業給を設定</div>
+        </a>
+      </div>
+    </div>
+
   </div>
+
+  {# ===== 右カラム: サブアクション + 管理 ===== #}
+  <div class="col-12 col-lg-4">
+
+    {# PC: カードにまとめる / モバイル: フラット表示 #}
+    <div class="d-none d-lg-block side-card mb-3">
+      <div class="side-card-title">クイックアクション</div>
+      <div class="d-flex flex-column gap-2">
+        <a href="{{ url_for('admin.bonus') }}" class="menu-tile w-100" style="flex-direction:row; justify-content:flex-start; gap:.75rem; min-height:0; padding:.85rem 1rem;">
+          <i class="bi bi-trophy tile-icon text-warning" style="font-size:1.5rem;"></i>
+          <div>
+            <div class="tile-label" style="text-align:left;">ボーナス</div>
+            <div class="tile-sub" style="text-align:left;">チャレンジ・一時ボーナス</div>
+          </div>
+        </a>
+        <a href="{{ url_for('finance.index', child_id=selected_id) }}" class="menu-tile w-100" style="flex-direction:row; justify-content:flex-start; gap:.75rem; min-height:0; padding:.85rem 1rem;">
+          <i class="bi bi-wallet2 tile-icon" style="color:var(--primary); font-size:1.5rem;"></i>
+          <div>
+            <div class="tile-label" style="text-align:left;">収支表</div>
+            <div class="tile-sub" style="text-align:left;">入出金を確認</div>
+          </div>
+        </a>
+        <a href="{{ url_for('stats.index', child_id=selected_id) }}" class="menu-tile w-100" style="flex-direction:row; justify-content:flex-start; gap:.75rem; min-height:0; padding:.85rem 1rem;">
+          <i class="bi bi-bar-chart-fill tile-icon text-info" style="font-size:1.5rem;"></i>
+          <div>
+            <div class="tile-label" style="text-align:left;">実績</div>
+            <div class="tile-sub" style="text-align:left;">積み上げを振り返る</div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    {# PC: 管理リンク #}
+    <div class="d-none d-lg-flex flex-column gap-2">
+      <a href="{{ url_for('admin.payslip') }}" class="btn btn-outline-secondary btn-sm w-100">
+        <i class="bi bi-printer me-1"></i>給料明細を印刷
+      </a>
+      <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm w-100">
+        <i class="bi bi-gear me-1"></i>設定・子ども管理
+      </a>
+    </div>
+
+    {# モバイルのみ: セカンダリアクション #}
+    <div class="d-lg-none">
+      <div class="row g-2 mt-1 mb-2">
+        <div class="col-4">
+          <a href="{{ url_for('admin.bonus') }}" class="menu-tile accent w-100">
+            <i class="bi bi-trophy tile-icon text-warning"></i>
+            <div class="tile-label">ボーナス</div>
+          </a>
+        </div>
+        <div class="col-4">
+          <a href="{{ url_for('finance.index', child_id=selected_id) }}" class="menu-tile w-100">
+            <i class="bi bi-wallet2 tile-icon" style="color:var(--primary)"></i>
+            <div class="tile-label">収支表</div>
+          </a>
+        </div>
+        <div class="col-4">
+          <a href="{{ url_for('stats.index', child_id=selected_id) }}" class="menu-tile w-100">
+            <i class="bi bi-bar-chart-fill tile-icon text-info"></i>
+            <div class="tile-label">実績</div>
+          </a>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.payslip') }}" class="btn btn-outline-secondary btn-sm flex-1 text-center">
+          <i class="bi bi-printer me-1"></i>給料明細
+        </a>
+        <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm flex-1 text-center">
+          <i class="bi bi-gear me-1"></i>設定
+        </a>
+      </div>
+    </div>
+
+  </div>
+
 </div>
 
-{# メニュータイル #}
-<div class="row g-3 mb-2">
-
-  {# 日常操作 #}
-  <div class="col-12"><span class="text-muted small fw-bold">日常操作</span></div>
-  <div class="col-6">
-    <a href="{{ url_for('chores.index', child_id=selected_id) }}" class="text-decoration-none">
-      <div class="card h-100 text-center p-3" style="cursor:pointer;">
-        <i class="bi bi-check2-square fs-1 text-success mb-2"></i>
-        <div class="fw-bold">家事の確認・入力</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-6">
-    <a href="{{ url_for('grades.index', child_id=selected_id) }}" class="text-decoration-none">
-      <div class="card h-100 text-center p-3" style="cursor:pointer;">
-        <i class="bi bi-star-fill fs-1 text-warning mb-2"></i>
-        <div class="fw-bold">成績の確認</div>
-      </div>
-    </a>
-  </div>
-
-  {# ボーナス #}
-  <div class="col-12"><span class="text-muted small fw-bold">ボーナス</span></div>
-  <div class="col-6">
-    <a href="{{ url_for('admin.bonus') }}" class="text-decoration-none">
-      <div class="card h-100 text-center p-3" style="cursor:pointer; background:#fffde7;">
-        <i class="bi bi-trophy fs-1 text-warning mb-2"></i>
-        <div class="fw-bold">ボーナス管理</div>
-      </div>
-    </a>
-  </div>
-  {# 確認・分析 #}
-  <div class="col-12"><span class="text-muted small fw-bold">確認・分析</span></div>
-  <div class="col-6">
-    <a href="{{ url_for('finance.index', child_id=selected_id) }}" class="text-decoration-none">
-      <div class="card h-100 text-center p-3" style="cursor:pointer;">
-        <i class="bi bi-wallet2 fs-1 text-primary mb-2"></i>
-        <div class="fw-bold">収支表</div>
-      </div>
-    </a>
-  </div>
-  <div class="col-6">
-    <a href="{{ url_for('stats.index', child_id=selected_id) }}" class="text-decoration-none">
-      <div class="card h-100 text-center p-3" style="cursor:pointer;">
-        <i class="bi bi-bar-chart-fill fs-1 text-info mb-2"></i>
-        <div class="fw-bold">実績・積み上げ</div>
-      </div>
-    </a>
-  </div>
-
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="bi bi-person-plus fs-1 d-block mb-3" style="color:#c8ddd0;"></i>
+  <p class="mb-2">子どもが登録されていません</p>
+  <a href="{{ url_for('admin.index') }}" class="btn btn-primary">子どもを追加する</a>
 </div>
 {% endif %}
+
 {% endblock %}

@@ -17,6 +17,7 @@
   <meta name="twitter:description" content="家事報酬・成績ボーナス・目標貯金を一括管理。月額480円。">
   <link rel="canonical" href="https://allowance-app-98k3.onrender.com{% block canonical_path %}/{% endblock %}">
   <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/static/icon.svg">
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
   <meta name="mobile-web-app-capable" content="yes">
@@ -66,6 +67,99 @@
       input, select, textarea { font-size: 16px !important; } /* iOSズーム防止 */
       .bottom-nav { display: flex; }
       .container.py-4 { padding-bottom: 76px !important; }
+    }
+    /* ホームヒーローカード */
+    .home-hero {
+      background: linear-gradient(135deg, var(--primary) 0%, #2d6a45 100%);
+      border-radius: 20px;
+      padding: 1.25rem 1.5rem;
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(74,124,89,.35);
+    }
+    .home-hero .hero-label { font-size: .72rem; opacity: .78; letter-spacing: .03em; }
+    .home-hero .hero-amount { font-size: 2rem; font-weight: 800; line-height: 1.1; }
+    .home-hero .hero-amount.negative { color: #fca5a5; }
+    .home-hero .hero-sub { font-size: 1.15rem; font-weight: 700; opacity: .9; }
+    .home-hero .hero-divider { width: 1px; background: rgba(255,255,255,.25); align-self: stretch; margin: .25rem 0; }
+    /* 子どもタブ */
+    .child-tab {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .45rem 1rem; border-radius: 99px; font-weight: 700; font-size: .85rem;
+      text-decoration: none; border: 2px solid transparent; transition: all .15s;
+      position: relative; white-space: nowrap;
+    }
+    .child-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .child-tab.inactive { background: #fff; color: var(--primary); border-color: #c8ddd0; }
+    .child-tab .tab-badge {
+      position: absolute; top: -5px; right: -5px;
+      background: #ef4444; color: #fff; border-radius: 99px;
+      font-size: .6rem; font-weight: 800; min-width: 18px; height: 18px;
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid #f5f7f5;
+    }
+    /* メニュータイル */
+    .menu-tile {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: .5rem; padding: 1.1rem .75rem;
+      background: #fff; border-radius: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      text-decoration: none; color: inherit; cursor: pointer;
+      transition: transform .12s, box-shadow .12s;
+      min-height: 90px;
+    }
+    .menu-tile:active { transform: scale(.96); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .menu-tile .tile-icon { font-size: 1.8rem; line-height: 1; }
+    .menu-tile .tile-label { font-size: .8rem; font-weight: 700; color: #374151; text-align: center; }
+    .menu-tile .tile-sub { font-size: .68rem; color: #9ca3af; }
+    .menu-tile.accent { background: linear-gradient(135deg, #fffde7 0%, #fff8e1 100%); }
+    /* ゴールカード */
+    .goal-card {
+      background: #fff; border-radius: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      padding: 1rem 1.25rem;
+      border-left: 4px solid var(--accent);
+      text-decoration: none; color: inherit; display: block;
+    }
+    .goal-progress { height: 10px; border-radius: 99px; background: #e9ecef; overflow: hidden; }
+    .goal-progress .bar { height: 100%; border-radius: 99px; background: var(--primary); transition: width .4s; }
+    /* チャレンジカード */
+    .challenge-card {
+      background: #fff; border-radius: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      padding: .85rem 1rem;
+      border-left: 4px solid var(--accent);
+    }
+    /* ===== PC / デスクトップ ===== */
+    @media (min-width: 992px) {
+      /* コンテンツ幅を程よく制限 */
+      .container { max-width: 1040px !important; }
+      /* ナビをもう少し余裕ある見た目に */
+      .navbar .nav-link { font-size: .9rem; padding: .45rem .75rem !important; }
+      /* ヒーローカードを大きく */
+      .home-hero { padding: 1.75rem 2rem; border-radius: 24px; }
+      .home-hero .hero-amount { font-size: 2.8rem; }
+      .home-hero .hero-sub { font-size: 1.3rem; }
+      /* タイルを大きく・余裕ある */
+      .menu-tile { min-height: 120px; padding: 1.5rem 1.25rem; border-radius: 20px; }
+      .menu-tile .tile-icon { font-size: 2.2rem; }
+      .menu-tile .tile-label { font-size: .92rem; }
+      .menu-tile .tile-sub { font-size: .74rem; }
+      /* 子供タブを少し大きく */
+      .child-tab { font-size: .92rem; padding: .5rem 1.25rem; }
+      /* ゴールカード */
+      .goal-card { padding: 1.25rem 1.5rem; border-radius: 20px; }
+      /* チャレンジカード */
+      .challenge-card { padding: 1rem 1.25rem; border-radius: 16px; }
+      /* サイドカード（PC右カラム用） */
+      .side-card {
+        background: #fff; border-radius: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,.07);
+        padding: 1.25rem;
+      }
+      .side-card .side-card-title {
+        font-size: .78rem; font-weight: 700; color: #6b7280;
+        text-transform: uppercase; letter-spacing: .06em; margin-bottom: .75rem;
+      }
     }
     @media print {
       .navbar, .bottom-nav, .no-print { display: none !important; }
