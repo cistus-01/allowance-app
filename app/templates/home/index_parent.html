@@ -75,13 +75,6 @@
             <div class="tile-sub" style="text-align:left;">チャレンジ・一時ボーナス</div>
           </div>
         </a>
-        <a href="{{ url_for('finance.index', child_id=selected_id) }}" class="menu-tile w-100" style="flex-direction:row; justify-content:flex-start; gap:.75rem; min-height:0; padding:.85rem 1rem;">
-          <i class="bi bi-wallet2 tile-icon" style="color:var(--primary); font-size:1.5rem;"></i>
-          <div>
-            <div class="tile-label" style="text-align:left;">収支表</div>
-            <div class="tile-sub" style="text-align:left;">入出金を確認</div>
-          </div>
-        </a>
         <a href="{{ url_for('stats.index', child_id=selected_id) }}" class="menu-tile w-100" style="flex-direction:row; justify-content:flex-start; gap:.75rem; min-height:0; padding:.85rem 1rem;">
           <i class="bi bi-bar-chart-fill tile-icon text-info" style="font-size:1.5rem;"></i>
           <div>
@@ -92,45 +85,21 @@
       </div>
     </div>
 
-    {# PC: 管理リンク #}
-    <div class="d-none d-lg-flex flex-column gap-2">
-      <a href="{{ url_for('admin.payslip') }}" class="btn btn-outline-secondary btn-sm w-100">
-        <i class="bi bi-printer me-1"></i>給料明細を印刷
-      </a>
-      <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm w-100">
-        <i class="bi bi-gear me-1"></i>設定・子ども管理
-      </a>
-    </div>
-
     {# モバイルのみ: セカンダリアクション #}
     <div class="d-lg-none">
-      <div class="row g-2 mt-1 mb-2">
-        <div class="col-4">
+      <div class="row g-2 mt-1">
+        <div class="col-6">
           <a href="{{ url_for('admin.bonus') }}" class="menu-tile accent w-100">
             <i class="bi bi-trophy tile-icon text-warning"></i>
             <div class="tile-label">ボーナス</div>
           </a>
         </div>
-        <div class="col-4">
-          <a href="{{ url_for('finance.index', child_id=selected_id) }}" class="menu-tile w-100">
-            <i class="bi bi-wallet2 tile-icon" style="color:var(--primary)"></i>
-            <div class="tile-label">収支表</div>
-          </a>
-        </div>
-        <div class="col-4">
+        <div class="col-6">
           <a href="{{ url_for('stats.index', child_id=selected_id) }}" class="menu-tile w-100">
             <i class="bi bi-bar-chart-fill tile-icon text-info"></i>
             <div class="tile-label">実績</div>
           </a>
         </div>
-      </div>
-      <div class="d-flex gap-2">
-        <a href="{{ url_for('admin.payslip') }}" class="btn btn-outline-secondary btn-sm flex-1 text-center">
-          <i class="bi bi-printer me-1"></i>給料明細
-        </a>
-        <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm flex-1 text-center">
-          <i class="bi bi-gear me-1"></i>設定
-        </a>
       </div>
     </div>
 

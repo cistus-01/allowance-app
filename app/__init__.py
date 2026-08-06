@@ -6,40 +6,54 @@ from .models import User
 
 login_manager = LoginManager()
 
+
 def create_app():
     from datetime import timedelta
+
     app = Flask(__name__)
-    app.secret_key = os.environ.get('SECRET_KEY', 'allowance-app-secret-2026')
-    app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
-    app.config['REMEMBER_COOKIE_HTTPONLY'] = True
-    app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+    app.secret_key = os.environ.get("SECRET_KEY", "allowance-app-secret-2026")
+    app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=365)
+    app.config["REMEMBER_COOKIE_HTTPONLY"] = True
+    app.config["REMEMBER_COOKIE_SAMESITE"] = "Lax"
 
     login_manager.init_app(app)
-    login_manager.login_view = 'auth.login'
-    login_manager.login_message = 'ログインしてください。'
-    login_manager.login_message_category = 'warning'
+    login_manager.login_view = "auth.login"
+    login_manager.login_message = "ログインしてください。"
+    login_manager.login_message_category = "warning"
 
     @login_manager.user_loader
     def load_user(user_id):
         db = get_db()
-        row = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        row = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         if row is None:
             return None
         return User(row)
 
     with app.app_context():
         init_db()
-        from .routes import auth, home, chores, grades, finance, admin, goals, setup, register, billing, seo, jarvis, onboarding, stats, help, withdraw
+        from .routes import (
+            auth,
+            home,
+            chores,
+            grades,
+            admin,
+            setup,
+            register,
+            seo,
+            jarvis,
+            onboarding,
+            stats,
+            help,
+            withdraw,
+        )
+
         app.register_blueprint(auth.bp)
         app.register_blueprint(home.bp)
         app.register_blueprint(chores.bp)
         app.register_blueprint(grades.bp)
-        app.register_blueprint(finance.bp)
         app.register_blueprint(admin.bp)
-        app.register_blueprint(goals.bp)
         app.register_blueprint(setup.bp)
         app.register_blueprint(register.bp)
-        app.register_blueprint(billing.bp)
         app.register_blueprint(seo.bp)
         app.register_blueprint(jarvis.bp)
         app.register_blueprint(onboarding.bp)

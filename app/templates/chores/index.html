@@ -119,6 +119,18 @@
               ○
             </button>
             <div class="small mt-1 text-muted" id="count-{{ ct.id }}"></div>
+            {% if current_user.is_parent %}
+            <div class="mt-2">
+              <button type="button"
+                      class="btn btn-sm btn-outline-secondary parent-chore-toggle-btn"
+                      style="font-size:.68rem; padding:.15rem .5rem; border-radius:99px;"
+                      data-parent-chore-id="{{ ct.id }}"
+                      onclick="toggleChore({{ ct.id }}, true)"
+                      title="親もこの家事をやった（金額を分け合う）">
+                👪 親も
+              </button>
+            </div>
+            {% endif %}
           </div>
           {% endfor %}
         </div>
@@ -139,6 +151,7 @@ let modalUserId = null;
 const choreTypeIds = {{ chore_types | map(attribute='id') | list | tojson }};
 const today = '{{ today.isoformat() }}';
 const isParent = {{ 'true' if current_user.is_parent else 'false' }};
+const parentId = {{ current_user.id if current_user.is_parent else 'null' }};
 const todayMonth = '{{ '%04d-%02d' | format(today.year, today.month) }}';
 // 前月の YYYY-MM
 const _td = new Date(today + 'T00:00:00');
@@ -146,6 +159,8 @@ const _pm = new Date(_td.getFullYear(), _td.getMonth() - 1, 1);
 const prevMonthStr = _pm.getFullYear() + '-' + String(_pm.getMonth() + 1).padStart(2, '0');
 // record_map: キーはすべてstr
 let recordMap = {{ record_map | tojson }};
+// 親自身の家事記録（親も家事をやった場合、報酬を分け合うため）
+let parentRecordMap = {{ (parent_record_map or {}) | tojson }};
 
 // 家事名マップ
 const choreNames = {
@@ -185,19 +200,37 @@ function openChoreModal(dateStr, userId) {
         }
         countEl.textContent = info && info.count > 1 ? `${info.count}人` : '';
         btn.disabled = !canEdit;
+
+        if (isParent) {
+            const pBtn = document.querySelector(`[data-parent-chore-id="${choreId}"]`);
+            const parentDayRecord = parentRecordMap[dateStr] || {};
+            const parentInfo = parentDayRecord[String(choreId)];
+            if (parentInfo && parentInfo.checked) {
+                pBtn.textContent = '👪 親も ✓';
+                pBtn.classList.remove('btn-outline-secondary');
+                pBtn.classList.add('btn-success');
+            } else {
+                pBtn.textContent = '👪 親も';
+                pBtn.classList.remove('btn-success');
+                pBtn.classList.add('btn-outline-secondary');
+            }
+            pBtn.disabled = !canEdit;
+        }
     });
 
     new bootstrap.Modal(document.getElementById('choreModal')).show();
 }
 
-async function toggleChore(choreId) {
+async function toggleChore(choreId, asParent = false) {
+    const targetUserId = asParent ? parentId : modalUserId;
     const res = await fetch('/chores/toggle', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             date: modalDate,
             chore_type_id: choreId,
-            user_id: modalUserId
+            user_id: targetUserId,
+            report_user_id: modalUserId
         })
     });
     const data = await res.json();
@@ -206,24 +239,35 @@ async function toggleChore(choreId) {
         return;
     }
 
-    // モーダルのボタン更新
-    const btn = document.querySelector(`[data-chore-id="${choreId}"]`);
-    const countEl = document.getElementById(`count-${choreId}`);
-    if (data.checked) {
-        btn.textContent = '●'; btn.classList.add('btn-success'); btn.classList.remove('btn-outline-secondary');
+    if (asParent) {
+        // 親自身のトグルボタン更新
+        const pBtn = document.querySelector(`[data-parent-chore-id="${choreId}"]`);
+        if (data.checked) {
+            pBtn.textContent = '👪 親も ✓'; pBtn.classList.add('btn-success'); pBtn.classList.remove('btn-outline-secondary');
+        } else {
+            pBtn.textContent = '👪 親も'; pBtn.classList.remove('btn-success'); pBtn.classList.add('btn-outline-secondary');
+        }
+        if (!parentRecordMap[modalDate]) parentRecordMap[modalDate] = {};
+        parentRecordMap[modalDate][String(choreId)] = {checked: data.checked, count: data.count};
     } else {
-        btn.textContent = '○'; btn.classList.remove('btn-success'); btn.classList.add('btn-outline-secondary');
+        // 子供のトグルボタン更新
+        const btn = document.querySelector(`[data-chore-id="${choreId}"]`);
+        if (data.checked) {
+            btn.textContent = '●'; btn.classList.add('btn-success'); btn.classList.remove('btn-outline-secondary');
+        } else {
+            btn.textContent = '○'; btn.classList.remove('btn-success'); btn.classList.add('btn-outline-secondary');
+        }
+        if (!recordMap[modalDate]) recordMap[modalDate] = {};
+        recordMap[modalDate][String(choreId)] = {checked: data.checked, count: data.count};
+        // カレンダーアイコン更新
+        updateCalendarIcons(modalDate);
     }
+
+    // 「何人でやったか」表示は子供・親どちらのトグルでも変わるので常に更新
+    const countEl = document.getElementById(`count-${choreId}`);
     countEl.textContent = data.count > 1 ? `${data.count}人` : '';
 
-    // recordMap を更新
-    if (!recordMap[modalDate]) recordMap[modalDate] = {};
-    recordMap[modalDate][String(choreId)] = {checked: data.checked, count: data.count};
-
-    // カレンダーアイコン更新
-    updateCalendarIcons(modalDate);
-
-    // サマリー行・獲得金額を更新（APIから返ってくるので即反映）
+    // サマリー行・獲得金額を更新（画面に表示中の子供の分。APIから返ってくるので即反映）
     if (data.summary) {
         for (const [cid, cnt] of Object.entries(data.summary)) {
             const el = document.getElementById(`summary-${cid}`);

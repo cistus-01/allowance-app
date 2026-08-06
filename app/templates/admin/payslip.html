@@ -60,19 +60,34 @@
 {% endblock %}
 {% block content %}
 
-<div class="no-print d-flex align-items-center justify-content-between mb-3">
+<div class="no-print d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
   <h3 class="mb-0"><i class="bi bi-printer me-2"></i>給料明細</h3>
-  <div class="d-flex gap-2 align-items-center">
-    <a href="{{ url_for('admin.payslip', year=prev_year, month=prev_month) }}"
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <a href="{{ url_for('admin.payslip', year=prev_year, month=prev_month, issuer_id=issuer.id if issuer else none) }}"
        class="btn btn-outline-secondary btn-sm">&laquo; 先月</a>
     <span class="fw-bold">{{ year }}年{{ month }}月</span>
-    <a href="{{ url_for('admin.payslip', year=next_year, month=next_month) }}"
+    <a href="{{ url_for('admin.payslip', year=next_year, month=next_month, issuer_id=issuer.id if issuer else none) }}"
        class="btn btn-outline-secondary btn-sm">来月 &raquo;</a>
     <button onclick="window.print()" class="btn btn-primary btn-sm">
       <i class="bi bi-printer me-1"></i>印刷する
     </button>
   </div>
 </div>
+
+{% if issuers|length > 1 %}
+<div class="no-print mb-3">
+  <form method="get" class="d-flex align-items-center gap-2">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="month" value="{{ month }}">
+    <label class="small text-muted mb-0" for="issuer_id">発行者</label>
+    <select name="issuer_id" id="issuer_id" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+      {% for i in issuers %}
+      <option value="{{ i.id }}" {% if issuer and i.id == issuer.id %}selected{% endif %}>{{ i.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+{% endif %}
 
 {% for slip in slips %}
 {% if not loop.first %}
@@ -87,6 +102,7 @@
     <div class="text-end">
       <div class="opacity-75 small">{{ year }}年{{ month }}月　支給分</div>
       <div class="slip-total">¥{{ '{:,}'.format(slip.total) }}</div>
+      {% if issuer %}<div class="opacity-75 small">発行者：{{ issuer.name }}</div>{% endif %}
     </div>
   </div>
 

@@ -2,19 +2,19 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{% block title %}こどもの給与帳{% endblock %}</title>
-  <meta name="description" content="{% block meta_description %}子供の給与・家事報酬・成績ボーナスをまとめて管理。家族みんなで使えるこどもの給与帳アプリ。月額480円。{% endblock %}">
+  <meta name="description" content="{% block meta_description %}子供の給与・家事報酬・成績ボーナスをまとめて管理。家族みんなで使えるこどもの給与帳アプリ。無料で利用できます。{% endblock %}">
   <meta name="keywords" content="こどもの給与帳,子供,お小遣い管理,家事,家族,お金教育,小学生">
   <meta property="og:type" content="website">
   <meta property="og:title" content="{% block og_title %}こどもの給与帳 | 家族で使えるお小遣い管理アプリ{% endblock %}">
-  <meta property="og:description" content="{% block og_description %}家事報酬・成績ボーナス・目標貯金を一括管理。子供のお金教育を楽しくサポート。月額480円（ファミリープラン）。{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}家事報酬・成績ボーナスを一括管理。子供のお金教育を楽しくサポート。無料で利用できます。{% endblock %}">
   <meta property="og:url" content="https://allowance-app-98k3.onrender.com/">
   <meta property="og:site_name" content="こどもの給与帳">
   <meta property="og:locale" content="ja_JP">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="こどもの給与帳 | 家族で使えるお小遣い管理アプリ">
-  <meta name="twitter:description" content="家事報酬・成績ボーナス・目標貯金を一括管理。月額480円。">
+  <meta name="twitter:description" content="家事報酬・成績ボーナスを一括管理。無料で利用できます。">
   <link rel="canonical" href="https://allowance-app-98k3.onrender.com{% block canonical_path %}/{% endblock %}">
   <link rel="manifest" href="/static/manifest.json">
   <link rel="icon" type="image/svg+xml" href="/static/icon.svg">
@@ -34,7 +34,7 @@
       --accent: #f8b500;
     }
     body { background: #f5f7f5; font-family: 'Segoe UI', sans-serif; }
-    .navbar { background: var(--primary) !important; }
+    .navbar { background: var(--primary) !important; padding-top: calc(8px + env(safe-area-inset-top)) !important; }
     .navbar .navbar-brand, .navbar .nav-link { color: #fff !important; }
     .btn-primary { background: var(--primary); border-color: var(--primary); }
     .btn-primary:hover { background: #3a6148; border-color: #3a6148; }
@@ -55,7 +55,7 @@
     .eval-△ { background: #e0e0e0; border-color: #e0e0e0; color: #333; }
     .summary-box { background: #fff; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
     /* ボトムナビ */
-    .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e0e0e0; z-index: 1000; height: 60px; }
+    .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e0e0e0; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
     .bottom-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: .65rem; color: #888; text-decoration: none; padding: 6px 0; }
     .bottom-nav a.active { color: var(--primary); }
     .bottom-nav a i { font-size: 1.3rem; }
@@ -66,7 +66,7 @@
       .btn { min-height: 44px; }
       input, select, textarea { font-size: 16px !important; } /* iOSズーム防止 */
       .bottom-nav { display: flex; }
-      .container.py-4 { padding-bottom: 76px !important; }
+      .container.py-4 { padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important; }
     }
     /* ホームヒーローカード */
     .home-hero {
@@ -186,25 +186,18 @@
         <li class="nav-item"><a href="{{ url_for('chores.index') }}" class="nav-link {% if '/chores' in path %}fw-bold{% endif %}"><i class="bi bi-check2-square"></i> 家事</a></li>
         <li class="nav-item"><a href="{{ url_for('grades.index') }}" class="nav-link {% if '/grades' in path %}fw-bold{% endif %}"><i class="bi bi-star-fill"></i> 成績</a></li>
         <li class="nav-item"><a href="{{ url_for('admin.bonus') }}" class="nav-link {% if '/bonus' in path %}fw-bold{% endif %}"><i class="bi bi-trophy"></i> ボーナス</a></li>
-        <li class="nav-item"><a href="{{ url_for('finance.index') }}" class="nav-link {% if '/finance' in path %}fw-bold{% endif %}"><i class="bi bi-wallet2"></i> 収支</a></li>
-<li class="nav-item"><a href="{{ url_for('admin.payslip') }}" class="nav-link {% if '/payslip' in path %}fw-bold{% endif %}"><i class="bi bi-printer"></i> 給料明細</a></li>
+        <li class="nav-item"><a href="{{ url_for('stats.index') }}" class="nav-link {% if '/stats' in path %}fw-bold{% endif %}"><i class="bi bi-bar-chart-fill"></i> 実績</a></li>
+        <li class="nav-item"><a href="{{ url_for('admin.payslip') }}" class="nav-link {% if '/payslip' in path %}fw-bold{% endif %}"><i class="bi bi-printer"></i> 給料明細</a></li>
         <li class="nav-item"><a href="{{ url_for('help.index') }}" class="nav-link {% if '/help' in path %}fw-bold{% endif %}"><i class="bi bi-question-circle"></i> ヘルプ</a></li>
         {% else %}
         <li class="nav-item"><a href="{{ url_for('home.index') }}" class="nav-link {% if path == '/' %}fw-bold{% endif %}"><i class="bi bi-house-fill"></i> ホーム</a></li>
         <li class="nav-item"><a href="{{ url_for('chores.index') }}" class="nav-link {% if '/chores' in path %}fw-bold{% endif %}"><i class="bi bi-check2-square"></i> 家事</a></li>
         <li class="nav-item"><a href="{{ url_for('grades.index') }}" class="nav-link {% if '/grades' in path %}fw-bold{% endif %}"><i class="bi bi-star-fill"></i> 成績</a></li>
-        <li class="nav-item"><a href="{{ url_for('finance.index') }}" class="nav-link {% if '/finance' in path %}fw-bold{% endif %}"><i class="bi bi-wallet2"></i> 収支</a></li>
-        <li class="nav-item"><a href="{{ url_for('goals.index') }}" class="nav-link {% if '/goals' in path %}fw-bold{% endif %}">🎯 ほしいもの</a></li>
         <li class="nav-item"><a href="{{ url_for('stats.index') }}" class="nav-link {% if '/stats' in path %}fw-bold{% endif %}"><i class="bi bi-bar-chart-fill"></i> 実績</a></li>
         <li class="nav-item"><a href="{{ url_for('help.index') }}" class="nav-link {% if '/help' in path %}fw-bold{% endif %}"><i class="bi bi-question-circle"></i> ヘルプ</a></li>
         {% endif %}
       </ul>
       <ul class="navbar-nav align-items-lg-center gap-lg-2 mt-2 mt-lg-0">
-        {% if current_user.is_parent %}
-        <li class="nav-item d-none d-lg-block">
-          <a href="{{ url_for('billing.index') }}" class="nav-link"><i class="bi bi-credit-card"></i> プラン</a>
-        </li>
-        {% endif %}
         <li class="nav-item">
           <span class="nav-link text-white-50">
             <i class="bi bi-person-circle"></i> {{ current_user.name }}
@@ -264,14 +257,14 @@
   <a href="{{ url_for('chores.index') }}" class="{% if '/chores' in path %}active{% endif %}">
     <i class="bi bi-check2-square"></i>家事
   </a>
-  <a href="{{ url_for('goals.index') }}" class="{% if '/goals' in path %}active{% endif %}">
-    <i class="bi bi-star-fill"></i>ほしいもの
-  </a>
-  <a href="{{ url_for('finance.index') }}" class="{% if '/finance' in path %}active{% endif %}">
-    <i class="bi bi-wallet2"></i>収支
+  <a href="{{ url_for('grades.index') }}" class="{% if '/grades' in path %}active{% endif %}">
+    <i class="bi bi-star-fill"></i>成績
   </a>
   <a href="{{ url_for('stats.index') }}" class="{% if '/stats' in path %}active{% endif %}">
     <i class="bi bi-bar-chart-fill"></i>実績
+  </a>
+  <a href="{{ url_for('help.index') }}" class="{% if '/help' in path %}active{% endif %}">
+    <i class="bi bi-question-circle"></i>ヘルプ
   </a>
 </nav>
 {% endif %}

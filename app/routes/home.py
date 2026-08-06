@@ -1,58 +1,32 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request
 from flask_login import current_user
 from ..database import get_db
 from ..salary import calc_monthly_salary, calc_balance
-from ..utils import get_family_children, verify_child_ownership, get_family
-from datetime import date, datetime
+from ..utils import get_family_children, verify_child_ownership
+from datetime import date
 
-bp = Blueprint('home', __name__)
+bp = Blueprint("home", __name__)
 
-@bp.route('/')
+
+@bp.route("/")
 def index():
     if not current_user.is_authenticated:
-        return render_template('home/lp.html')
+        return render_template("home/lp.html")
 
-    # Subscription check for parents
-    if current_user.role == 'parent':
-        db_for_check = get_db()
-        family = get_family(db_for_check)
-        if family:
-            status = family['subscription_status']
-            if status == 'canceling':
-                # 退会予約中 — 期日超過していたら削除実行
-                delete_at = family['scheduled_delete_at']
-                if delete_at and datetime.fromisoformat(delete_at) <= datetime.utcnow():
-                    from ..routes.withdraw import _delete_family_data
-                    from flask_login import logout_user
-                    family_id = family['id']
-                    logout_user()
-                    _delete_family_data(db_for_check, family_id)
-                    flash('サブスクリプション期間が終了し、退会処理が完了しました。', 'info')
-                    return redirect(url_for('home.index'))
-                else:
-                    flash(f'退会手続き中です（削除予定: {delete_at[:10] if delete_at else "期間終了後"}）。', 'warning')
-            elif status == 'trial':
-                trial_end = family['trial_ends_at']
-                if trial_end and datetime.fromisoformat(trial_end) <= datetime.utcnow():
-                    flash('トライアル期間が終了しました。プランにご登録ください。', 'warning')
-                    return redirect(url_for('billing.index'))
-            elif status not in ('active', 'trial', 'canceling'):
-                flash('トライアル期間が終了しました。プランにご登録ください。', 'warning')
-                return redirect(url_for('billing.index'))
     # 初回ログイン時はチュートリアルへ
     if not current_user.tutorial_done:
-        return redirect(url_for('help.tutorial'))
+        return redirect(url_for("help.tutorial"))
 
     db = get_db()
     today = date.today()
     next_month = today.month + 1 if today.month < 12 else 1
-    next_year  = today.year if today.month < 12 else today.year + 1
+    next_year = today.year if today.month < 12 else today.year + 1
 
     if current_user.is_parent:
         children = get_family_children(db)
-        selected_id = request.args.get('child_id', type=int)
+        selected_id = request.args.get("child_id", type=int)
         if selected_id is None and children:
-            selected_id = children[0]['id']
+            selected_id = children[0]["id"]
         selected_child = None
         salary = None
         balance = None
@@ -60,6 +34,7 @@ def index():
             row = verify_child_ownership(db, selected_id)
             if row:
                 from ..models import User
+
                 selected_child = User(row)
                 salary = calc_monthly_salary(selected_id, next_year, next_month)
                 balance = calc_balance(selected_id)
@@ -67,58 +42,38 @@ def index():
         # 今日の全子供の家事チェック数（ホーム一覧用）
         today_str = today.isoformat()
         chore_counts_today = {}
-        for child in (children or []):
+        for child in children or []:
             cnt = db.execute(
-                'SELECT COUNT(*) as cnt FROM chore_records WHERE user_id=? AND record_date=?',
-                (child['id'], today_str)
-            ).fetchone()['cnt']
-            chore_counts_today[child['id']] = cnt
+                "SELECT COUNT(*) as cnt FROM chore_records WHERE user_id=? AND record_date=?",
+                (child["id"], today_str),
+            ).fetchone()["cnt"]
+            chore_counts_today[child["id"]] = cnt
 
-        return render_template('home/index_parent.html',
-                               children=children,
-                               selected_child=selected_child,
-                               selected_id=selected_id,
-                               salary=salary,
-                               balance=balance,
-                               today=today,
-                               next_month=next_month,
-                               chore_counts_today=chore_counts_today)
+        return render_template(
+            "home/index_parent.html",
+            children=children,
+            selected_child=selected_child,
+            selected_id=selected_id,
+            salary=salary,
+            balance=balance,
+            today=today,
+            next_month=next_month,
+            chore_counts_today=chore_counts_today,
+        )
     else:
         salary = calc_monthly_salary(current_user.id, next_year, next_month)
         balance = calc_balance(current_user.id)
-        top_goal = db.execute(
-            'SELECT * FROM goals WHERE user_id=? AND is_achieved=0 ORDER BY created_at ASC LIMIT 1',
-            (current_user.id,)
-        ).fetchone()
-
-        # 全家事の日割り最大報酬（days_to_goal 計算用）
-        chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
-
-        # 目標達成まであと何日？（全家事毎日やった場合の最短日数）
-        days_to_goal = None
-        if top_goal:
-            remaining = top_goal['target_amount'] - balance
-            if remaining > 0:
-                daily_max = sum(ct['unit_price'] for ct in chore_types) if chore_types else 0
-                # 月次固定給（base_pay + grade_pay）を日割り
-                import calendar as cal_mod
-                days_in_month = cal_mod.monthrange(today.year, today.month)[1]
-                daily_fixed = (salary['base_pay'] + salary.get('grade_pay', 0) + salary.get('academic_pay', 0)) / days_in_month
-                daily_total = daily_max + daily_fixed
-                if daily_total > 0:
-                    import math
-                    days_to_goal = math.ceil(remaining / daily_total)
 
         open_challenges = db.execute(
             "SELECT * FROM challenges WHERE user_id=? AND status='open' ORDER BY created_at ASC",
-            (current_user.id,)
+            (current_user.id,),
         ).fetchall()
 
-        return render_template('home/index_child.html',
-                               salary=salary,
-                               balance=balance,
-                               today=today,
-                               next_month=next_month,
-                               top_goal=top_goal,
-                               days_to_goal=days_to_goal,
-                               open_challenges=open_challenges)
+        return render_template(
+            "home/index_child.html",
+            salary=salary,
+            balance=balance,
+            today=today,
+            next_month=next_month,
+            open_challenges=open_challenges,
+        )

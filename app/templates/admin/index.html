@@ -8,26 +8,6 @@
   <div class="card-header">親アカウント設定</div>
   <div class="card-body">
 
-    {# プラン状況 #}
-    <div class="mb-3 p-3 rounded" style="background:#f8f9fa;">
-      <div class="small text-muted mb-1">プラン状況</div>
-      {% if family %}
-        {% if family.subscription_status == 'active' %}
-          <span class="badge bg-success">有料プラン</span>
-          {% if plan_ends_str %}<span class="text-muted small ms-2">{{ plan_ends_str }}まで</span>{% endif %}
-        {% elif family.subscription_status == 'trial' %}
-          <span class="badge bg-warning text-dark">トライアル中</span>
-          {% if trial_days_left is not none %}
-            <span class="text-muted small ms-2">残り{{ trial_days_left }}日</span>
-          {% endif %}
-          <a href="{{ url_for('billing.index') }}" class="btn btn-sm btn-outline-primary ms-2">プランに登録</a>
-        {% else %}
-          <span class="badge bg-danger">期限切れ</span>
-          <a href="{{ url_for('billing.index') }}" class="btn btn-sm btn-outline-primary ms-2">プランに登録</a>
-        {% endif %}
-      {% endif %}
-    </div>
-
     <form method="post" action="{{ url_for('admin.edit_profile') }}">
       <div class="row g-3">
         <div class="col-sm-6">

@@ -4,380 +4,501 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from ..database import get_db
-from ..utils import get_family_children, verify_child_ownership, subscription_required
+from ..utils import get_family_children, verify_child_ownership
 
-bp = Blueprint('admin', __name__, url_prefix='/admin')
+bp = Blueprint("admin", __name__, url_prefix="/admin")
+
 
 def parent_required(f):
     from functools import wraps
+
     @wraps(f)
     def decorated(*args, **kwargs):
         if not current_user.is_authenticated or not current_user.is_parent:
-            flash('親のみアクセスできます。', 'danger')
-            return redirect(url_for('home.index'))
+            flash("親のみアクセスできます。", "danger")
+            return redirect(url_for("home.index"))
         return f(*args, **kwargs)
+
     return decorated
 
-@bp.route('/')
+
+@bp.route("/")
 @login_required
 @parent_required
 def index():
     from ..utils import get_family
-    from datetime import datetime
+
     db = get_db()
     children = get_family_children(db)
-    pay_rates = db.execute('SELECT * FROM pay_rates ORDER BY id').fetchall()
-    chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
-    subjects = db.execute('SELECT * FROM subjects ORDER BY sort_order').fetchall()
+    pay_rates = db.execute("SELECT * FROM pay_rates ORDER BY id").fetchall()
+    chore_types = db.execute(
+        "SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order"
+    ).fetchall()
+    subjects = db.execute("SELECT * FROM subjects ORDER BY sort_order").fetchall()
     family = get_family(db)
-    parent = db.execute('SELECT * FROM users WHERE id=?', (current_user.id,)).fetchone()
-
-    trial_days_left = None
-    plan_ends_str = None
-    if family:
-        status = family['subscription_status']
-        if status == 'trial' and family['trial_ends_at']:
-            delta = datetime.fromisoformat(family['trial_ends_at']) - datetime.utcnow()
-            trial_days_left = max(0, delta.days)
-        if family['plan_ends_at']:
-            plan_ends_str = family['plan_ends_at'][:10]
+    parent = db.execute("SELECT * FROM users WHERE id=?", (current_user.id,)).fetchone()
 
     # プリセット
     presets = {}
     if family:
-        rows = db.execute('SELECT * FROM config_presets WHERE family_id=?', (family['id'],)).fetchall()
+        rows = db.execute(
+            "SELECT * FROM config_presets WHERE family_id=?", (family["id"],)
+        ).fetchall()
         for r in rows:
-            presets[r['slot']] = r
+            presets[r["slot"]] = r
 
-    return render_template('admin/index.html',
-                           children=children,
-                           pay_rates=pay_rates,
-                           chore_types=chore_types,
-                           subjects=subjects,
-                           family=family,
-                           parent=parent,
-                           trial_days_left=trial_days_left,
-                           plan_ends_str=plan_ends_str,
-                           presets=presets)
+    return render_template(
+        "admin/index.html",
+        children=children,
+        pay_rates=pay_rates,
+        chore_types=chore_types,
+        subjects=subjects,
+        family=family,
+        parent=parent,
+        presets=presets,
+    )
 
-@bp.route('/user/add', methods=['POST'])
+
+@bp.route("/user/add", methods=["POST"])
 @login_required
 @parent_required
 def add_user():
     db = get_db()
-    name = request.form.get('name', '').strip()
-    username = request.form.get('username', '').strip()
-    password = request.form.get('password', '').strip()
-    grade = request.form.get('grade', type=int)
+    name = request.form.get("name", "").strip()
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "").strip()
+    grade = request.form.get("grade", type=int)
 
     if not name or not username or not password:
-        flash('全項目を入力してください。', 'danger')
-        return redirect(url_for('admin.index'))
+        flash("全項目を入力してください。", "danger")
+        return redirect(url_for("admin.index"))
 
-    existing = db.execute('SELECT id FROM users WHERE username=?', (username,)).fetchone()
+    existing = db.execute(
+        "SELECT id FROM users WHERE username=?", (username,)
+    ).fetchone()
     if existing:
-        flash('そのユーザー名は既に使われています。', 'danger')
-        return redirect(url_for('admin.index'))
+        flash("そのユーザー名は既に使われています。", "danger")
+        return redirect(url_for("admin.index"))
 
-    db.execute('''
+    db.execute(
+        """
         INSERT INTO users (name, username, password_hash, role, grade, family_id)
         VALUES (?, ?, ?, 'child', ?, ?)
-    ''', (name, username, generate_password_hash(password), grade, current_user.family_id))
+    """,
+        (
+            name,
+            username,
+            generate_password_hash(password),
+            grade,
+            current_user.family_id,
+        ),
+    )
     db.commit()
-    flash(f'{name} を追加しました。', 'success')
-    return redirect(url_for('admin.index'))
+    flash(f"{name} を追加しました。", "success")
+    return redirect(url_for("admin.index"))
 
-@bp.route('/user/<int:user_id>/edit', methods=['POST'])
+
+@bp.route("/user/<int:user_id>/edit", methods=["POST"])
 @login_required
 @parent_required
 def edit_user(user_id):
     db = get_db()
     if not verify_child_ownership(db, user_id):
-        flash('権限がありません。', 'danger')
-        return redirect(url_for('admin.index'))
-    name = request.form.get('name', '').strip()
-    grade = request.form.get('grade', type=int)
-    password = request.form.get('password', '').strip()
+        flash("権限がありません。", "danger")
+        return redirect(url_for("admin.index"))
+    name = request.form.get("name", "").strip()
+    grade = request.form.get("grade", type=int)
+    password = request.form.get("password", "").strip()
     if password:
-        db.execute('UPDATE users SET name=?, grade=?, password_hash=? WHERE id=?',
-                   (name, grade, generate_password_hash(password), user_id))
+        db.execute(
+            "UPDATE users SET name=?, grade=?, password_hash=? WHERE id=?",
+            (name, grade, generate_password_hash(password), user_id),
+        )
     else:
-        db.execute('UPDATE users SET name=?, grade=? WHERE id=?', (name, grade, user_id))
+        db.execute(
+            "UPDATE users SET name=?, grade=? WHERE id=?", (name, grade, user_id)
+        )
     db.commit()
-    flash('更新しました。', 'success')
-    return redirect(url_for('admin.index'))
+    flash("更新しました。", "success")
+    return redirect(url_for("admin.index"))
 
-@bp.route('/user/<int:user_id>/delete', methods=['POST'])
+
+@bp.route("/user/<int:user_id>/delete", methods=["POST"])
 @login_required
 @parent_required
 def delete_user(user_id):
     db = get_db()
     if not verify_child_ownership(db, user_id):
-        flash('権限がありません。', 'danger')
-        return redirect(url_for('admin.index'))
+        flash("権限がありません。", "danger")
+        return redirect(url_for("admin.index"))
     db.execute("DELETE FROM users WHERE id=? AND role='child'", (user_id,))
     db.commit()
-    flash('削除しました。', 'success')
-    return redirect(url_for('admin.index'))
+    flash("削除しました。", "success")
+    return redirect(url_for("admin.index"))
 
-@bp.route('/rates/update', methods=['POST'])
+
+@bp.route("/rates/update", methods=["POST"])
 @login_required
 @parent_required
 def update_rates():
     db = get_db()
-    for key in ['base_pay', 'grade_pay_multiplier', 'eval_excellent', 'eval_good', 'eval_poor']:
+    for key in [
+        "base_pay",
+        "grade_pay_multiplier",
+        "eval_excellent",
+        "eval_good",
+        "eval_poor",
+    ]:
         value = request.form.get(key, type=int)
         if value is not None:
-            db.execute('UPDATE pay_rates SET value=? WHERE key=?', (value, key))
+            db.execute("UPDATE pay_rates SET value=? WHERE key=?", (value, key))
     db.commit()
-    flash('単価を更新しました。', 'success')
-    return redirect(url_for('admin.index'))
+    flash("単価を更新しました。", "success")
+    return redirect(url_for("admin.index"))
 
-@bp.route('/chore/add', methods=['POST'])
+
+@bp.route("/chore/add", methods=["POST"])
 @login_required
 @parent_required
 def add_chore():
     db = get_db()
-    name = request.form.get('name', '').strip()
-    unit_price = request.form.get('unit_price', type=int)
+    name = request.form.get("name", "").strip()
+    unit_price = request.form.get("unit_price", type=int)
     if name and unit_price is not None:
-        max_order = db.execute('SELECT MAX(sort_order) as m FROM chore_types').fetchone()['m'] or 0
-        db.execute('INSERT INTO chore_types (name, unit_price, sort_order) VALUES (?, ?, ?)',
-                   (name, unit_price, max_order + 1))
+        max_order = (
+            db.execute("SELECT MAX(sort_order) as m FROM chore_types").fetchone()["m"]
+            or 0
+        )
+        db.execute(
+            "INSERT INTO chore_types (name, unit_price, sort_order) VALUES (?, ?, ?)",
+            (name, unit_price, max_order + 1),
+        )
         db.commit()
-        flash('家事を追加しました。', 'success')
-    return redirect(url_for('admin.index'))
+        flash("家事を追加しました。", "success")
+    return redirect(url_for("admin.index"))
 
-@bp.route('/subject/add', methods=['POST'])
+
+@bp.route("/subject/add", methods=["POST"])
 @login_required
 @parent_required
 def add_subject():
     db = get_db()
-    name = request.form.get('name', '').strip()
+    name = request.form.get("name", "").strip()
     if name:
-        max_order = db.execute('SELECT MAX(sort_order) as m FROM subjects').fetchone()['m'] or 0
-        db.execute('INSERT INTO subjects (name, sort_order) VALUES (?, ?)', (name, max_order + 1))
-        new_id = db.execute('SELECT last_insert_rowid() as id').fetchone()['id']
+        max_order = (
+            db.execute("SELECT MAX(sort_order) as m FROM subjects").fetchone()["m"] or 0
+        )
+        db.execute(
+            "INSERT INTO subjects (name, sort_order) VALUES (?, ?)",
+            (name, max_order + 1),
+        )
+        new_id = db.execute("SELECT last_insert_rowid() as id").fetchone()["id"]
         for grade in range(1, 7):
-            db.execute('INSERT OR IGNORE INTO grade_subjects (grade, subject_id) VALUES (?, ?)',
-                       (grade, new_id))
+            db.execute(
+                "INSERT OR IGNORE INTO grade_subjects (grade, subject_id) VALUES (?, ?)",
+                (grade, new_id),
+            )
         db.commit()
-        flash('教科を追加しました。', 'success')
-    return redirect(url_for('admin.index'))
+        flash("教科を追加しました。", "success")
+    return redirect(url_for("admin.index"))
 
-@bp.route('/chore/<int:chore_id>/edit', methods=['POST'])
+
+@bp.route("/chore/<int:chore_id>/edit", methods=["POST"])
 @login_required
 @parent_required
 def edit_chore(chore_id):
     db = get_db()
-    name = request.form.get('name', '').strip()
-    unit_price = request.form.get('unit_price', type=int)
+    name = request.form.get("name", "").strip()
+    unit_price = request.form.get("unit_price", type=int)
     if name and unit_price is not None:
-        db.execute('UPDATE chore_types SET name=?, unit_price=? WHERE id=?', (name, unit_price, chore_id))
+        db.execute(
+            "UPDATE chore_types SET name=?, unit_price=? WHERE id=?",
+            (name, unit_price, chore_id),
+        )
         db.commit()
-        flash('家事を更新しました。', 'success')
-    return redirect(url_for('admin.index'))
+        flash("家事を更新しました。", "success")
+    return redirect(url_for("admin.index"))
 
-@bp.route('/chore/<int:chore_id>/delete', methods=['POST'])
+
+@bp.route("/chore/<int:chore_id>/delete", methods=["POST"])
 @login_required
 @parent_required
 def delete_chore(chore_id):
     db = get_db()
-    db.execute('UPDATE chore_types SET is_active=0 WHERE id=?', (chore_id,))
+    db.execute("UPDATE chore_types SET is_active=0 WHERE id=?", (chore_id,))
     db.commit()
-    flash('家事を削除しました。', 'success')
-    return redirect(url_for('admin.index'))
+    flash("家事を削除しました。", "success")
+    return redirect(url_for("admin.index"))
 
-@bp.route('/chore/reorder', methods=['POST'])
+
+@bp.route("/chore/reorder", methods=["POST"])
 @login_required
 @parent_required
 def reorder_chores():
     db = get_db()
     ids = request.get_json()
     for i, chore_id in enumerate(ids):
-        db.execute('UPDATE chore_types SET sort_order=? WHERE id=?', (i, chore_id))
+        db.execute("UPDATE chore_types SET sort_order=? WHERE id=?", (i, chore_id))
     db.commit()
-    return '', 204
+    return "", 204
 
-@bp.route('/subject/<int:subject_id>/delete', methods=['POST'])
+
+@bp.route("/subject/<int:subject_id>/delete", methods=["POST"])
 @login_required
 @parent_required
 def delete_subject(subject_id):
     db = get_db()
-    db.execute('DELETE FROM subjects WHERE id=?', (subject_id,))
+    db.execute("DELETE FROM subjects WHERE id=?", (subject_id,))
     db.commit()
-    flash('教科を削除しました。', 'success')
-    return redirect(url_for('admin.index'))
+    flash("教科を削除しました。", "success")
+    return redirect(url_for("admin.index"))
 
-@bp.route('/subject/reorder', methods=['POST'])
+
+@bp.route("/subject/reorder", methods=["POST"])
 @login_required
 @parent_required
 def reorder_subjects():
     db = get_db()
     ids = request.get_json()
     for i, subject_id in enumerate(ids):
-        db.execute('UPDATE subjects SET sort_order=? WHERE id=?', (i, subject_id))
+        db.execute("UPDATE subjects SET sort_order=? WHERE id=?", (i, subject_id))
     db.commit()
-    return '', 204
+    return "", 204
 
-@bp.route('/subject/<int:subject_id>/move_unused', methods=['POST'])
+
+@bp.route("/subject/<int:subject_id>/move_unused", methods=["POST"])
 @login_required
 @parent_required
 def move_subject(subject_id):
     db = get_db()
-    direction = request.form.get('direction')
-    current = db.execute('SELECT sort_order FROM subjects WHERE id=?', (subject_id,)).fetchone()
+    direction = request.form.get("direction")
+    current = db.execute(
+        "SELECT sort_order FROM subjects WHERE id=?", (subject_id,)
+    ).fetchone()
     if not current:
-        return redirect(url_for('admin.index'))
-    cur_order = current['sort_order']
-    if direction == 'up':
-        swap = db.execute('SELECT id, sort_order FROM subjects WHERE sort_order < ? ORDER BY sort_order DESC LIMIT 1', (cur_order,)).fetchone()
+        return redirect(url_for("admin.index"))
+    cur_order = current["sort_order"]
+    if direction == "up":
+        swap = db.execute(
+            "SELECT id, sort_order FROM subjects WHERE sort_order < ? ORDER BY sort_order DESC LIMIT 1",
+            (cur_order,),
+        ).fetchone()
     else:
-        swap = db.execute('SELECT id, sort_order FROM subjects WHERE sort_order > ? ORDER BY sort_order ASC LIMIT 1', (cur_order,)).fetchone()
+        swap = db.execute(
+            "SELECT id, sort_order FROM subjects WHERE sort_order > ? ORDER BY sort_order ASC LIMIT 1",
+            (cur_order,),
+        ).fetchone()
     if swap:
-        db.execute('UPDATE subjects SET sort_order=? WHERE id=?', (swap['sort_order'], subject_id))
-        db.execute('UPDATE subjects SET sort_order=? WHERE id=?', (cur_order, swap['id']))
+        db.execute(
+            "UPDATE subjects SET sort_order=? WHERE id=?",
+            (swap["sort_order"], subject_id),
+        )
+        db.execute(
+            "UPDATE subjects SET sort_order=? WHERE id=?", (cur_order, swap["id"])
+        )
         db.commit()
-    return redirect(url_for('admin.index'))
+    return redirect(url_for("admin.index"))
 
-@bp.route('/profile/edit', methods=['POST'])
+
+@bp.route("/profile/edit", methods=["POST"])
 @login_required
 @parent_required
 def edit_profile():
     from werkzeug.security import generate_password_hash
-    db = get_db()
-    username = request.form.get('username', '').strip()
-    name = request.form.get('name', '').strip()
-    email = request.form.get('email', '').strip()
-    password = request.form.get('password', '').strip()
-    family_name = request.form.get('family_name', '').strip()
-    if username and username != current_user.username:
-        existing = db.execute('SELECT id FROM users WHERE username=? AND id!=?',
-                              (username, current_user.id)).fetchone()
-        if existing:
-            flash('そのログインIDは既に使われています。', 'danger')
-            return redirect(url_for('admin.index'))
-        db.execute('UPDATE users SET username=? WHERE id=?', (username, current_user.id))
-    if name:
-        db.execute('UPDATE users SET name=? WHERE id=?', (name, current_user.id))
-    if email:
-        db.execute('UPDATE users SET email=? WHERE id=?', (email, current_user.id))
-    if password:
-        db.execute('UPDATE users SET password_hash=? WHERE id=?', (generate_password_hash(password), current_user.id))
-    if family_name and current_user.family_id:
-        db.execute('UPDATE families SET name=? WHERE id=?', (family_name, current_user.family_id))
-    db.commit()
-    flash('プロフィールを更新しました。', 'success')
-    return redirect(url_for('admin.index'))
 
-@bp.route('/rates')
+    db = get_db()
+    username = request.form.get("username", "").strip()
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip()
+    password = request.form.get("password", "").strip()
+    family_name = request.form.get("family_name", "").strip()
+    if username and username != current_user.username:
+        existing = db.execute(
+            "SELECT id FROM users WHERE username=? AND id!=?",
+            (username, current_user.id),
+        ).fetchone()
+        if existing:
+            flash("そのログインIDは既に使われています。", "danger")
+            return redirect(url_for("admin.index"))
+        db.execute(
+            "UPDATE users SET username=? WHERE id=?", (username, current_user.id)
+        )
+    if name:
+        db.execute("UPDATE users SET name=? WHERE id=?", (name, current_user.id))
+    if email:
+        db.execute("UPDATE users SET email=? WHERE id=?", (email, current_user.id))
+    if password:
+        db.execute(
+            "UPDATE users SET password_hash=? WHERE id=?",
+            (generate_password_hash(password), current_user.id),
+        )
+    if family_name and current_user.family_id:
+        db.execute(
+            "UPDATE families SET name=? WHERE id=?",
+            (family_name, current_user.family_id),
+        )
+    db.commit()
+    flash("プロフィールを更新しました。", "success")
+    return redirect(url_for("admin.index"))
+
+
+@bp.route("/rates")
 @login_required
 @parent_required
 def rates():
     db = get_db()
-    pay_rates = {r['key']: r for r in db.execute('SELECT * FROM pay_rates').fetchall()}
-    chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
-    return render_template('admin/rates.html', pay_rates=pay_rates, chore_types=chore_types)
+    pay_rates = {r["key"]: r for r in db.execute("SELECT * FROM pay_rates").fetchall()}
+    chore_types = db.execute(
+        "SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order"
+    ).fetchall()
+    return render_template(
+        "admin/rates.html", pay_rates=pay_rates, chore_types=chore_types
+    )
 
-@bp.route('/payslip')
+
+@bp.route("/payslip")
 @login_required
 @parent_required
 def payslip():
     from ..salary import calc_monthly_salary
+
     db = get_db()
     today = date.today()
-    year  = request.args.get('year',  today.year,  type=int)
-    month = request.args.get('month', today.month, type=int)
+    year = request.args.get("year", today.year, type=int)
+    month = request.args.get("month", today.month, type=int)
 
-    children    = get_family_children(db)
-    chore_types = db.execute('SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()
+    # 発行者（親）の選択
+    issuers = db.execute(
+        "SELECT id, name FROM users WHERE family_id=? AND role='parent' ORDER BY id",
+        (current_user.family_id,),
+    ).fetchall()
+    issuer_id = request.args.get("issuer_id", type=int)
+    issuer = None
+    if issuer_id:
+        issuer = next((i for i in issuers if i["id"] == issuer_id), None)
+    if issuer is None:
+        issuer = next((i for i in issuers if i["id"] == current_user.id), None) or (
+            issuers[0] if issuers else None
+        )
+
+    children = get_family_children(db)
+    chore_types = db.execute(
+        "SELECT * FROM chore_types WHERE is_active=1 ORDER BY sort_order"
+    ).fetchall()
 
     # 明細は前月の家事を表示（前月分が今月給料に反映される）
     prev_month = month - 1 if month > 1 else 12
-    prev_year  = year if month > 1 else year - 1
-    prev_month_str = f'{prev_year}-{prev_month:02d}'
+    prev_year = year if month > 1 else year - 1
+    prev_month_str = f"{prev_year}-{prev_month:02d}"
 
     slips = []
     for child in children:
-        salary = calc_monthly_salary(child['id'], year, month)
+        salary = calc_monthly_salary(child["id"], year, month)
         chore_detail = []
         for ct in chore_types:
-            cnt = db.execute('''
+            cnt = db.execute(
+                """
                 SELECT COUNT(*) AS c FROM chore_records
                 WHERE user_id=? AND chore_type_id=?
                   AND strftime('%Y-%m', record_date)=?
-            ''', (child['id'], ct['id'], prev_month_str)).fetchone()['c']
+            """,
+                (child["id"], ct["id"], prev_month_str),
+            ).fetchone()["c"]
             pay = 0
-            days = db.execute('''
+            days = db.execute(
+                """
                 SELECT record_date FROM chore_records
                 WHERE user_id=? AND chore_type_id=?
                   AND strftime('%Y-%m', record_date)=?
-            ''', (child['id'], ct['id'], prev_month_str)).fetchall()
+            """,
+                (child["id"], ct["id"], prev_month_str),
+            ).fetchall()
             for day in days:
-                shared_cnt = db.execute('''
+                shared_cnt = db.execute(
+                    """
                     SELECT COUNT(*) AS c FROM chore_records
                     WHERE chore_type_id=? AND record_date=?
-                ''', (ct['id'], day['record_date'])).fetchone()['c']
-                pay += ct['unit_price'] // shared_cnt
-            chore_detail.append({'name': ct['name'], 'count': cnt, 'pay': pay})
+                """,
+                    (ct["id"], day["record_date"]),
+                ).fetchone()["c"]
+                pay += ct["unit_price"] // shared_cnt
+            chore_detail.append({"name": ct["name"], "count": cnt, "pay": pay})
 
         # ボーナス内訳（前月分・金額付き）
-        bonus_detail = db.execute('''
+        bonus_detail = db.execute(
+            """
             SELECT item, SUM(amount) as total, category
             FROM finance_records
             WHERE user_id=? AND category IN ('test_bonus', 'bonus')
               AND strftime('%Y-%m', record_date)=?
             GROUP BY item, category
             ORDER BY category, item
-        ''', (child['id'], prev_month_str)).fetchall()
+        """,
+            (child["id"], prev_month_str),
+        ).fetchall()
 
-        slips.append({
-            'user': child,
-            'base_pay':     salary['base_pay'],
-            'grade_pay':    salary['grade_pay'],
-            'academic_pay': salary['academic_pay'],
-            'chore_detail': chore_detail,
-            'chore_total':  salary['chore_pay'],
-            'bonus_pay':    salary['bonus_pay'],
-            'bonus_detail': bonus_detail,
-            'total':        salary['total'],
-        })
+        slips.append(
+            {
+                "user": child,
+                "base_pay": salary["base_pay"],
+                "grade_pay": salary["grade_pay"],
+                "academic_pay": salary["academic_pay"],
+                "chore_detail": chore_detail,
+                "chore_total": salary["chore_pay"],
+                "bonus_pay": salary["bonus_pay"],
+                "bonus_detail": bonus_detail,
+                "total": salary["total"],
+            }
+        )
 
-    prev_year,  prev_month  = (year, month - 1) if month > 1  else (year - 1, 12)
-    next_year,  next_month  = (year, month + 1) if month < 12 else (year + 1,  1)
+    prev_year, prev_month = (year, month - 1) if month > 1 else (year - 1, 12)
+    next_year, next_month = (year, month + 1) if month < 12 else (year + 1, 1)
 
-    return render_template('admin/payslip.html',
-                           slips=slips,
-                           year=year, month=month,
-                           today=today,
-                           prev_year=prev_year, prev_month=prev_month,
-                           next_year=next_year, next_month=next_month)
+    return render_template(
+        "admin/payslip.html",
+        slips=slips,
+        year=year,
+        month=month,
+        today=today,
+        prev_year=prev_year,
+        prev_month=prev_month,
+        next_year=next_year,
+        next_month=next_month,
+        issuers=issuers,
+        issuer=issuer,
+    )
+
 
 def _grade_pay_unit(db, user_id):
     """その子の学年給（= テストボーナス1科目の単価）を返す"""
-    multiplier = db.execute("SELECT value FROM pay_rates WHERE key='grade_pay_multiplier'").fetchone()
-    m = multiplier['value'] if multiplier else 50
-    user = db.execute('SELECT grade FROM users WHERE id=?', (user_id,)).fetchone()
-    grade = user['grade'] if user and user['grade'] else 1
+    multiplier = db.execute(
+        "SELECT value FROM pay_rates WHERE key='grade_pay_multiplier'"
+    ).fetchone()
+    m = multiplier["value"] if multiplier else 50
+    user = db.execute("SELECT grade FROM users WHERE id=?", (user_id,)).fetchone()
+    grade = user["grade"] if user and user["grade"] else 1
     return grade * m
 
-@bp.route('/bonus', methods=['GET'])
+
+@bp.route("/bonus", methods=["GET"])
 @login_required
 @parent_required
 def bonus():
     from datetime import date
     from ..utils import get_family
+
     db = get_db()
     family = get_family(db)
     children = get_family_children(db)
-    subjects = db.execute('SELECT * FROM subjects ORDER BY sort_order').fetchall()
-    unit_prices = {c['id']: _grade_pay_unit(db, c['id']) for c in children}
-    child_ids = [c['id'] for c in children]
+    subjects = db.execute("SELECT * FROM subjects ORDER BY sort_order").fetchall()
+    unit_prices = {c["id"]: _grade_pay_unit(db, c["id"]) for c in children}
+    child_ids = [c["id"] for c in children]
 
     bonus_records = []
     if child_ids:
-        ph = ','.join('?' * len(child_ids))
-        bonus_records = db.execute(f'''
+        ph = ",".join("?" * len(child_ids))
+        bonus_records = db.execute(
+            f"""
             SELECT f.id, f.record_date, f.item, f.amount, f.note, f.category,
                    u.name as child_name, u.id as child_id
             FROM finance_records f
@@ -385,261 +506,352 @@ def bonus():
             WHERE f.user_id IN ({ph})
               AND f.category IN ('test_bonus', 'bonus', 'summer_bonus')
             ORDER BY f.record_date DESC, u.name LIMIT 100
-        ''', child_ids).fetchall()
+        """,
+            child_ids,
+        ).fetchall()
 
     challenges = []
     if family:
-        challenges = db.execute('''
+        challenges = db.execute(
+            """
             SELECT c.*, u.name as child_name
             FROM challenges c JOIN users u ON c.user_id = u.id
             WHERE c.family_id = ?
             ORDER BY c.status ASC, c.created_at DESC
-        ''', (family['id'],)).fetchall()
+        """,
+            (family["id"],),
+        ).fetchall()
 
-    return render_template('admin/bonus.html',
-                           children=children, subjects=subjects,
-                           bonus_records=bonus_records, unit_prices=unit_prices,
-                           challenges=challenges, today=date.today())
+    return render_template(
+        "admin/bonus.html",
+        children=children,
+        subjects=subjects,
+        bonus_records=bonus_records,
+        unit_prices=unit_prices,
+        challenges=challenges,
+        today=date.today(),
+    )
 
 
-@bp.route('/bonus/give', methods=['POST'])
+@bp.route("/bonus/give", methods=["POST"])
 @login_required
 @parent_required
 def give_bonus():
     from datetime import date
+
     db = get_db()
-    user_id = request.form.get('user_id', type=int)
-    record_date = request.form.get('record_date') or str(date.today())
-    score = request.form.get('score', '').strip()
-    note = request.form.get('note', '').strip()
-    custom_amount = request.form.get('amount', type=int)
-    subject_names = request.form.getlist('subjects')
+    user_id = request.form.get("user_id", type=int)
+    record_date = request.form.get("record_date") or str(date.today())
+    score = request.form.get("score", "").strip()
+    note = request.form.get("note", "").strip()
+    custom_amount = request.form.get("amount", type=int)
+    subject_names = request.form.getlist("subjects")
     if not verify_child_ownership(db, user_id):
-        flash('権限がありません。', 'danger')
-        return redirect(url_for('admin.bonus') + '#test')
-    unit_price = custom_amount if custom_amount and custom_amount > 0 else _grade_pay_unit(db, user_id)
-    note_parts = [p for p in [score + '点' if score else '', note] if p]
-    full_note = ' / '.join(note_parts) or 'テストボーナス'
+        flash("権限がありません。", "danger")
+        return redirect(url_for("admin.bonus") + "#test")
+    unit_price = (
+        custom_amount
+        if custom_amount and custom_amount > 0
+        else _grade_pay_unit(db, user_id)
+    )
+    note_parts = [p for p in [score + "点" if score else "", note] if p]
+    full_note = " / ".join(note_parts) or "テストボーナス"
     if user_id and subject_names:
         for subject in subject_names:
-            db.execute('''
+            db.execute(
+                """
                 INSERT INTO finance_records (user_id, record_date, type, category, item, amount, note, created_by)
                 VALUES (?, ?, 'income', 'test_bonus', ?, ?, ?, ?)
-            ''', (user_id, record_date, subject, unit_price, full_note, current_user.id))
+            """,
+                (user_id, record_date, subject, unit_price, full_note, current_user.id),
+            )
         db.commit()
-        flash(f'テストボーナス {len(subject_names)}科目 ¥{unit_price * len(subject_names):,} を記録しました。', 'success')
-    return redirect(url_for('admin.bonus') + '#test')
+        flash(
+            f"テストボーナス {len(subject_names)}科目 ¥{unit_price * len(subject_names):,} を記録しました。",
+            "success",
+        )
+    return redirect(url_for("admin.bonus") + "#test")
 
 
-@bp.route('/bonus/special', methods=['POST'])
+@bp.route("/bonus/special", methods=["POST"])
 @login_required
 @parent_required
 def give_special_bonus():
     from datetime import date
+
     db = get_db()
-    user_id = request.form.get('user_id', type=int)
-    title = request.form.get('title', '').strip()
-    amount = request.form.get('amount', type=int)
-    record_date = request.form.get('record_date') or str(date.today())
-    note = request.form.get('note', '').strip()
-    if not verify_child_ownership(db, user_id) or not title or not amount or amount <= 0:
-        flash('入力内容を確認してください。', 'danger')
-        return redirect(url_for('admin.bonus') + '#special')
-    db.execute('''
+    user_id = request.form.get("user_id", type=int)
+    title = request.form.get("title", "").strip()
+    amount = request.form.get("amount", type=int)
+    record_date = request.form.get("record_date") or str(date.today())
+    note = request.form.get("note", "").strip()
+    if (
+        not verify_child_ownership(db, user_id)
+        or not title
+        or not amount
+        or amount <= 0
+    ):
+        flash("入力内容を確認してください。", "danger")
+        return redirect(url_for("admin.bonus") + "#special")
+    db.execute(
+        """
         INSERT INTO finance_records (user_id, record_date, type, category, item, amount, note, created_by)
         VALUES (?, ?, 'income', 'bonus', ?, ?, ?, ?)
-    ''', (user_id, record_date, title, amount, note or '特別ボーナス', current_user.id))
+    """,
+        (user_id, record_date, title, amount, note or "特別ボーナス", current_user.id),
+    )
     db.commit()
-    flash(f'特別ボーナス「{title}」¥{amount:,} を記録しました。', 'success')
-    return redirect(url_for('admin.bonus') + '#special')
+    flash(f"特別ボーナス「{title}」¥{amount:,} を記録しました。", "success")
+    return redirect(url_for("admin.bonus") + "#special")
 
 
-@bp.route('/bonus/delete/<int:record_id>', methods=['POST'])
+@bp.route("/bonus/delete/<int:record_id>", methods=["POST"])
 @login_required
 @parent_required
 def delete_bonus(record_id):
     db = get_db()
-    rec = db.execute('''
+    rec = db.execute(
+        """
         SELECT user_id, category FROM finance_records
         WHERE id=? AND category IN ('test_bonus', 'summer_bonus', 'bonus')
-    ''', (record_id,)).fetchone()
-    if not rec or not verify_child_ownership(db, rec['user_id']):
-        flash('権限がありません。', 'danger')
-        return redirect(url_for('admin.bonus'))
-    tab = '#test' if rec['category'] == 'test_bonus' else '#special'
-    db.execute('DELETE FROM finance_records WHERE id=?', (record_id,))
+    """,
+        (record_id,),
+    ).fetchone()
+    if not rec or not verify_child_ownership(db, rec["user_id"]):
+        flash("権限がありません。", "danger")
+        return redirect(url_for("admin.bonus"))
+    tab = "#test" if rec["category"] == "test_bonus" else "#special"
+    db.execute("DELETE FROM finance_records WHERE id=?", (record_id,))
     db.commit()
-    flash('削除しました。', 'success')
-    return redirect(url_for('admin.bonus') + tab)
+    flash("削除しました。", "success")
+    return redirect(url_for("admin.bonus") + tab)
 
 
-@bp.route('/challenge/new', methods=['POST'])
+@bp.route("/challenge/new", methods=["POST"])
 @login_required
 @parent_required
 def challenge_new():
     from ..utils import get_family
+
     db = get_db()
     family = get_family(db)
     if not family:
-        flash('ファミリーが見つかりません。', 'danger')
-        return redirect(url_for('admin.bonus') + '#challenge')
-    user_id = request.form.get('user_id', type=int)
-    title = request.form.get('title', '').strip()
-    condition = request.form.get('condition', '').strip()
-    reward_amount = request.form.get('reward_amount', type=int)
-    if not verify_child_ownership(db, user_id) or not title or not reward_amount or reward_amount <= 0:
-        flash('入力内容を確認してください。', 'danger')
-        return redirect(url_for('admin.bonus') + '#challenge')
-    db.execute('''
+        flash("ファミリーが見つかりません。", "danger")
+        return redirect(url_for("admin.bonus") + "#challenge")
+    user_id = request.form.get("user_id", type=int)
+    title = request.form.get("title", "").strip()
+    condition = request.form.get("condition", "").strip()
+    reward_amount = request.form.get("reward_amount", type=int)
+    if (
+        not verify_child_ownership(db, user_id)
+        or not title
+        or not reward_amount
+        or reward_amount <= 0
+    ):
+        flash("入力内容を確認してください。", "danger")
+        return redirect(url_for("admin.bonus") + "#challenge")
+    db.execute(
+        """
         INSERT INTO challenges (family_id, user_id, title, condition, reward_amount)
         VALUES (?, ?, ?, ?, ?)
-    ''', (family['id'], user_id, title, condition or None, reward_amount))
+    """,
+        (family["id"], user_id, title, condition or None, reward_amount),
+    )
     db.commit()
-    child = db.execute('SELECT name FROM users WHERE id=?', (user_id,)).fetchone()
-    flash(f'チャレンジ「{title}」を{child["name"]}に設定しました！', 'success')
-    return redirect(url_for('admin.bonus') + '#challenge')
+    child = db.execute("SELECT name FROM users WHERE id=?", (user_id,)).fetchone()
+    flash(f'チャレンジ「{title}」を{child["name"]}に設定しました！', "success")
+    return redirect(url_for("admin.bonus") + "#challenge")
 
 
-@bp.route('/challenge/<int:challenge_id>/complete', methods=['POST'])
+@bp.route("/challenge/<int:challenge_id>/complete", methods=["POST"])
 @login_required
 @parent_required
 def challenge_complete(challenge_id):
     from datetime import datetime, date
     from ..utils import get_family
+
     db = get_db()
     family = get_family(db)
     ch = db.execute(
         "SELECT * FROM challenges WHERE id=? AND family_id=? AND status='open'",
-        (challenge_id, family['id'] if family else -1)
+        (challenge_id, family["id"] if family else -1),
     ).fetchone()
     if not ch:
-        flash('チャレンジが見つかりません。', 'danger')
-        return redirect(url_for('admin.bonus') + '#challenge')
-    db.execute("UPDATE challenges SET status='done', completed_at=? WHERE id=?",
-               (datetime.utcnow().isoformat(), challenge_id))
-    db.execute('''
+        flash("チャレンジが見つかりません。", "danger")
+        return redirect(url_for("admin.bonus") + "#challenge")
+    db.execute(
+        "UPDATE challenges SET status='done', completed_at=? WHERE id=?",
+        (datetime.utcnow().isoformat(), challenge_id),
+    )
+    db.execute(
+        """
         INSERT INTO finance_records (user_id, record_date, type, category, item, amount, note, created_by)
         VALUES (?, ?, 'income', 'bonus', ?, ?, 'チャレンジ達成ボーナス', ?)
-    ''', (ch['user_id'], str(date.today()), ch['title'], ch['reward_amount'], current_user.id))
+    """,
+        (
+            ch["user_id"],
+            str(date.today()),
+            ch["title"],
+            ch["reward_amount"],
+            current_user.id,
+        ),
+    )
     db.commit()
-    flash(f'チャレンジ「{ch["title"]}」達成！¥{ch["reward_amount"]:,} を来月の給与に反映します。', 'success')
-    return redirect(url_for('admin.bonus') + '#challenge')
+    flash(
+        f'チャレンジ「{ch["title"]}」達成！¥{ch["reward_amount"]:,} を来月の給与に反映します。',
+        "success",
+    )
+    return redirect(url_for("admin.bonus") + "#challenge")
 
 
-@bp.route('/challenge/<int:challenge_id>/edit', methods=['POST'])
+@bp.route("/challenge/<int:challenge_id>/edit", methods=["POST"])
 @login_required
 @parent_required
 def challenge_edit(challenge_id):
     from ..utils import get_family
+
     db = get_db()
     family = get_family(db)
     ch = db.execute(
-        'SELECT * FROM challenges WHERE id=? AND family_id=?',
-        (challenge_id, family['id'] if family else -1)
+        "SELECT * FROM challenges WHERE id=? AND family_id=?",
+        (challenge_id, family["id"] if family else -1),
     ).fetchone()
     if not ch:
-        flash('チャレンジが見つかりません。', 'danger')
-        return redirect(url_for('admin.bonus') + '#challenge')
-    user_id = request.form.get('user_id', type=int)
-    title = request.form.get('title', '').strip()
-    condition = request.form.get('condition', '').strip()
-    reward_amount = request.form.get('reward_amount', type=int)
+        flash("チャレンジが見つかりません。", "danger")
+        return redirect(url_for("admin.bonus") + "#challenge")
+    user_id = request.form.get("user_id", type=int)
+    title = request.form.get("title", "").strip()
+    condition = request.form.get("condition", "").strip()
+    reward_amount = request.form.get("reward_amount", type=int)
     if not title or not reward_amount or reward_amount <= 0:
-        flash('入力内容を確認してください。', 'danger')
-        return redirect(url_for('admin.bonus') + '#challenge')
-    new_user_id = user_id if user_id and verify_child_ownership(db, user_id) else ch['user_id']
-    db.execute('UPDATE challenges SET user_id=?, title=?, condition=?, reward_amount=? WHERE id=?',
-               (new_user_id, title, condition or None, reward_amount, challenge_id))
+        flash("入力内容を確認してください。", "danger")
+        return redirect(url_for("admin.bonus") + "#challenge")
+    new_user_id = (
+        user_id if user_id and verify_child_ownership(db, user_id) else ch["user_id"]
+    )
+    db.execute(
+        "UPDATE challenges SET user_id=?, title=?, condition=?, reward_amount=? WHERE id=?",
+        (new_user_id, title, condition or None, reward_amount, challenge_id),
+    )
     db.commit()
-    flash(f'チャレンジ「{title}」を更新しました。', 'success')
-    return redirect(url_for('admin.bonus') + '#challenge')
+    flash(f"チャレンジ「{title}」を更新しました。", "success")
+    return redirect(url_for("admin.bonus") + "#challenge")
 
 
-@bp.route('/challenge/<int:challenge_id>/delete', methods=['POST'])
+@bp.route("/challenge/<int:challenge_id>/delete", methods=["POST"])
 @login_required
 @parent_required
 def challenge_delete(challenge_id):
     from ..utils import get_family
+
     db = get_db()
     family = get_family(db)
     ch = db.execute(
-        'SELECT * FROM challenges WHERE id=? AND family_id=?',
-        (challenge_id, family['id'] if family else -1)
+        "SELECT * FROM challenges WHERE id=? AND family_id=?",
+        (challenge_id, family["id"] if family else -1),
     ).fetchone()
     if not ch:
-        flash('チャレンジが見つかりません。', 'danger')
-        return redirect(url_for('admin.bonus') + '#challenge')
-    db.execute('DELETE FROM challenges WHERE id=?', (challenge_id,))
+        flash("チャレンジが見つかりません。", "danger")
+        return redirect(url_for("admin.bonus") + "#challenge")
+    db.execute("DELETE FROM challenges WHERE id=?", (challenge_id,))
     db.commit()
-    flash(f'チャレンジ「{ch["title"]}」を削除しました。', 'info')
-    return redirect(url_for('admin.bonus') + '#challenge')
+    flash(f'チャレンジ「{ch["title"]}」を削除しました。', "info")
+    return redirect(url_for("admin.bonus") + "#challenge")
 
 
-@bp.route('/challenge/<int:challenge_id>/copy', methods=['POST'])
+@bp.route("/challenge/<int:challenge_id>/copy", methods=["POST"])
 @login_required
 @parent_required
 def challenge_copy(challenge_id):
     from ..utils import get_family
+
     db = get_db()
     family = get_family(db)
     ch = db.execute(
-        'SELECT * FROM challenges WHERE id=? AND family_id=?',
-        (challenge_id, family['id'] if family else -1)
+        "SELECT * FROM challenges WHERE id=? AND family_id=?",
+        (challenge_id, family["id"] if family else -1),
     ).fetchone()
     if not ch:
-        flash('チャレンジが見つかりません。', 'danger')
-        return redirect(url_for('admin.bonus') + '#challenge')
-    db.execute('''
+        flash("チャレンジが見つかりません。", "danger")
+        return redirect(url_for("admin.bonus") + "#challenge")
+    db.execute(
+        """
         INSERT INTO challenges (family_id, user_id, title, condition, reward_amount)
         VALUES (?, ?, ?, ?, ?)
-    ''', (family['id'], ch['user_id'], ch['title'], ch['condition'], ch['reward_amount']))
+    """,
+        (
+            family["id"],
+            ch["user_id"],
+            ch["title"],
+            ch["condition"],
+            ch["reward_amount"],
+        ),
+    )
     db.commit()
-    flash(f'チャレンジ「{ch["title"]}」をコピーしました。', 'success')
-    return redirect(url_for('admin.bonus') + '#challenge')
+    flash(f'チャレンジ「{ch["title"]}」をコピーしました。', "success")
+    return redirect(url_for("admin.bonus") + "#challenge")
 
 
-@bp.route('/challenge/<int:challenge_id>/cancel', methods=['POST'])
+@bp.route("/challenge/<int:challenge_id>/cancel", methods=["POST"])
 @login_required
 @parent_required
 def challenge_cancel(challenge_id):
     from ..utils import get_family
+
     db = get_db()
     family = get_family(db)
     ch = db.execute(
         "SELECT * FROM challenges WHERE id=? AND family_id=? AND status='open'",
-        (challenge_id, family['id'] if family else -1)
+        (challenge_id, family["id"] if family else -1),
     ).fetchone()
     if not ch:
-        flash('チャレンジが見つかりません。', 'danger')
-        return redirect(url_for('admin.bonus') + '#challenge')
+        flash("チャレンジが見つかりません。", "danger")
+        return redirect(url_for("admin.bonus") + "#challenge")
     db.execute("UPDATE challenges SET status='cancelled' WHERE id=?", (challenge_id,))
     db.commit()
-    flash(f'チャレンジ「{ch["title"]}」をキャンセルしました。', 'info')
-    return redirect(url_for('admin.bonus') + '#challenge')
+    flash(f'チャレンジ「{ch["title"]}」をキャンセルしました。', "info")
+    return redirect(url_for("admin.bonus") + "#challenge")
 
 
-@bp.route('/preset/<int:slot>/save', methods=['POST'])
+@bp.route("/preset/<int:slot>/save", methods=["POST"])
 @login_required
 @parent_required
 def save_preset(slot):
     if slot not in (1, 2, 3):
-        flash('無効なスロットです。', 'danger')
-        return redirect(url_for('admin.index'))
+        flash("無効なスロットです。", "danger")
+        return redirect(url_for("admin.index"))
     from ..utils import get_family
+
     db = get_db()
     family = get_family(db)
     if not family:
-        flash('ファミリーが見つかりません。', 'danger')
-        return redirect(url_for('admin.index'))
+        flash("ファミリーが見つかりません。", "danger")
+        return redirect(url_for("admin.index"))
 
-    label = request.form.get('label', '').strip() or f'設定{slot}'
-    pay_rates = {r['key']: r['value'] for r in db.execute('SELECT key, value FROM pay_rates').fetchall()}
-    subjects = [{'name': r['name'], 'sort_order': r['sort_order']}
-                for r in db.execute('SELECT name, sort_order FROM subjects WHERE is_active=1 ORDER BY sort_order').fetchall()]
-    chore_types = [{'name': r['name'], 'unit_price': r['unit_price'], 'sort_order': r['sort_order']}
-                   for r in db.execute('SELECT name, unit_price, sort_order FROM chore_types WHERE is_active=1 ORDER BY sort_order').fetchall()]
+    label = request.form.get("label", "").strip() or f"設定{slot}"
+    pay_rates = {
+        r["key"]: r["value"]
+        for r in db.execute("SELECT key, value FROM pay_rates").fetchall()
+    }
+    subjects = [
+        {"name": r["name"], "sort_order": r["sort_order"]}
+        for r in db.execute(
+            "SELECT name, sort_order FROM subjects WHERE is_active=1 ORDER BY sort_order"
+        ).fetchall()
+    ]
+    chore_types = [
+        {
+            "name": r["name"],
+            "unit_price": r["unit_price"],
+            "sort_order": r["sort_order"],
+        }
+        for r in db.execute(
+            "SELECT name, unit_price, sort_order FROM chore_types WHERE is_active=1 ORDER BY sort_order"
+        ).fetchall()
+    ]
 
-    db.execute('''
+    db.execute(
+        """
         INSERT INTO config_presets (family_id, slot, label, pay_rates_json, subjects_json, chore_types_json, saved_at)
         VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(family_id, slot) DO UPDATE SET
@@ -648,133 +860,176 @@ def save_preset(slot):
             subjects_json=excluded.subjects_json,
             chore_types_json=excluded.chore_types_json,
             saved_at=CURRENT_TIMESTAMP
-    ''', (family['id'], slot, label, json.dumps(pay_rates, ensure_ascii=False),
-          json.dumps(subjects, ensure_ascii=False), json.dumps(chore_types, ensure_ascii=False)))
+    """,
+        (
+            family["id"],
+            slot,
+            label,
+            json.dumps(pay_rates, ensure_ascii=False),
+            json.dumps(subjects, ensure_ascii=False),
+            json.dumps(chore_types, ensure_ascii=False),
+        ),
+    )
     db.commit()
-    flash(f'「{label}」を保存しました。', 'success')
-    return redirect(url_for('admin.index') + '#presets')
+    flash(f"「{label}」を保存しました。", "success")
+    return redirect(url_for("admin.index") + "#presets")
 
 
-@bp.route('/preset/<int:slot>/load', methods=['POST'])
+@bp.route("/preset/<int:slot>/load", methods=["POST"])
 @login_required
 @parent_required
 def load_preset(slot):
     if slot not in (1, 2, 3):
-        flash('無効なスロットです。', 'danger')
-        return redirect(url_for('admin.index'))
+        flash("無効なスロットです。", "danger")
+        return redirect(url_for("admin.index"))
     from ..utils import get_family
+
     db = get_db()
     family = get_family(db)
     if not family:
-        flash('ファミリーが見つかりません。', 'danger')
-        return redirect(url_for('admin.index'))
+        flash("ファミリーが見つかりません。", "danger")
+        return redirect(url_for("admin.index"))
 
-    preset = db.execute('SELECT * FROM config_presets WHERE family_id=? AND slot=?',
-                        (family['id'], slot)).fetchone()
+    preset = db.execute(
+        "SELECT * FROM config_presets WHERE family_id=? AND slot=?",
+        (family["id"], slot),
+    ).fetchone()
     if not preset:
-        flash('保存されたデータがありません。', 'warning')
-        return redirect(url_for('admin.index'))
+        flash("保存されたデータがありません。", "warning")
+        return redirect(url_for("admin.index"))
 
-    pay_rates = json.loads(preset['pay_rates_json'])
-    subjects = json.loads(preset['subjects_json'])
-    chore_types = json.loads(preset['chore_types_json'])
+    pay_rates = json.loads(preset["pay_rates_json"])
+    subjects = json.loads(preset["subjects_json"])
+    chore_types = json.loads(preset["chore_types_json"])
 
     # 単価を復元
     for key, value in pay_rates.items():
-        db.execute('UPDATE pay_rates SET value=? WHERE key=?', (value, key))
+        db.execute("UPDATE pay_rates SET value=? WHERE key=?", (value, key))
 
     # 教科を復元（既存を一旦非表示、プリセット内容を有効化）
-    db.execute('UPDATE subjects SET is_active=0')
+    db.execute("UPDATE subjects SET is_active=0")
     for s in subjects:
-        existing = db.execute('SELECT id FROM subjects WHERE name=?', (s['name'],)).fetchone()
+        existing = db.execute(
+            "SELECT id FROM subjects WHERE name=?", (s["name"],)
+        ).fetchone()
         if existing:
-            db.execute('UPDATE subjects SET is_active=1, sort_order=? WHERE id=?',
-                       (s['sort_order'], existing['id']))
+            db.execute(
+                "UPDATE subjects SET is_active=1, sort_order=? WHERE id=?",
+                (s["sort_order"], existing["id"]),
+            )
         else:
-            db.execute('INSERT INTO subjects (name, sort_order, is_active) VALUES (?, ?, 1)',
-                       (s['name'], s['sort_order']))
-            new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+            db.execute(
+                "INSERT INTO subjects (name, sort_order, is_active) VALUES (?, ?, 1)",
+                (s["name"], s["sort_order"]),
+            )
+            new_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
             for grade in range(1, 7):
-                db.execute('INSERT OR IGNORE INTO grade_subjects (grade, subject_id) VALUES (?, ?)',
-                           (grade, new_id))
+                db.execute(
+                    "INSERT OR IGNORE INTO grade_subjects (grade, subject_id) VALUES (?, ?)",
+                    (grade, new_id),
+                )
 
     # 家事を復元
-    db.execute('UPDATE chore_types SET is_active=0')
+    db.execute("UPDATE chore_types SET is_active=0")
     for ct in chore_types:
-        existing = db.execute('SELECT id FROM chore_types WHERE name=?', (ct['name'],)).fetchone()
+        existing = db.execute(
+            "SELECT id FROM chore_types WHERE name=?", (ct["name"],)
+        ).fetchone()
         if existing:
-            db.execute('UPDATE chore_types SET is_active=1, unit_price=?, sort_order=? WHERE id=?',
-                       (ct['unit_price'], ct['sort_order'], existing['id']))
+            db.execute(
+                "UPDATE chore_types SET is_active=1, unit_price=?, sort_order=? WHERE id=?",
+                (ct["unit_price"], ct["sort_order"], existing["id"]),
+            )
         else:
-            db.execute('INSERT INTO chore_types (name, unit_price, sort_order, is_active) VALUES (?, ?, ?, 1)',
-                       (ct['name'], ct['unit_price'], ct['sort_order']))
+            db.execute(
+                "INSERT INTO chore_types (name, unit_price, sort_order, is_active) VALUES (?, ?, ?, 1)",
+                (ct["name"], ct["unit_price"], ct["sort_order"]),
+            )
 
     db.commit()
-    flash(f'「{preset["label"]}」を読み込みました。', 'success')
-    return redirect(url_for('admin.index') + '#presets')
+    flash(f'「{preset["label"]}」を読み込みました。', "success")
+    return redirect(url_for("admin.index") + "#presets")
 
 
 _DEFAULT_PAY_RATES = {
-    'base_pay': 100,
-    'grade_pay_multiplier': 50,
-    'eval_excellent': 50,
-    'eval_good': 15,
-    'eval_poor': 0,
+    "base_pay": 100,
+    "grade_pay_multiplier": 50,
+    "eval_excellent": 50,
+    "eval_good": 15,
+    "eval_poor": 0,
 }
 _DEFAULT_SUBJECTS = [
-    {'name': '国語', 'sort_order': 1}, {'name': '算数', 'sort_order': 2},
-    {'name': '理科', 'sort_order': 3}, {'name': '社会', 'sort_order': 4},
-    {'name': '英語', 'sort_order': 5}, {'name': '音楽', 'sort_order': 6},
-    {'name': '体育', 'sort_order': 7}, {'name': '図工', 'sort_order': 8},
-    {'name': '道徳', 'sort_order': 9},
+    {"name": "国語", "sort_order": 1},
+    {"name": "算数", "sort_order": 2},
+    {"name": "理科", "sort_order": 3},
+    {"name": "社会", "sort_order": 4},
+    {"name": "英語", "sort_order": 5},
+    {"name": "音楽", "sort_order": 6},
+    {"name": "体育", "sort_order": 7},
+    {"name": "図工", "sort_order": 8},
+    {"name": "道徳", "sort_order": 9},
 ]
 _DEFAULT_CHORE_TYPES = [
-    {'name': 'テーブル拭き',   'unit_price': 10, 'sort_order': 1},
-    {'name': '食器洗い',      'unit_price': 30, 'sort_order': 2},
-    {'name': '食器片付け',    'unit_price': 20, 'sort_order': 3},
-    {'name': '洗濯物たたみ',  'unit_price': 30, 'sort_order': 4},
-    {'name': '洗濯物干し',    'unit_price': 30, 'sort_order': 5},
-    {'name': '掃除機かけ',    'unit_price': 50, 'sort_order': 6},
-    {'name': 'ゴミ出し',      'unit_price': 30, 'sort_order': 7},
-    {'name': 'お風呂洗い',    'unit_price': 50, 'sort_order': 8},
-    {'name': 'トイレ掃除',    'unit_price': 80, 'sort_order': 9},
-    {'name': '買い物おつかい', 'unit_price': 50, 'sort_order': 10},
+    {"name": "テーブル拭き", "unit_price": 10, "sort_order": 1},
+    {"name": "食器洗い", "unit_price": 30, "sort_order": 2},
+    {"name": "食器片付け", "unit_price": 20, "sort_order": 3},
+    {"name": "洗濯物たたみ", "unit_price": 30, "sort_order": 4},
+    {"name": "洗濯物干し", "unit_price": 30, "sort_order": 5},
+    {"name": "掃除機かけ", "unit_price": 50, "sort_order": 6},
+    {"name": "ゴミ出し", "unit_price": 30, "sort_order": 7},
+    {"name": "お風呂洗い", "unit_price": 50, "sort_order": 8},
+    {"name": "トイレ掃除", "unit_price": 80, "sort_order": 9},
+    {"name": "買い物おつかい", "unit_price": 50, "sort_order": 10},
 ]
 
 
-@bp.route('/preset/default/load', methods=['POST'])
+@bp.route("/preset/default/load", methods=["POST"])
 @login_required
 @parent_required
 def load_default_preset():
     db = get_db()
 
     for key, value in _DEFAULT_PAY_RATES.items():
-        db.execute('UPDATE pay_rates SET value=? WHERE key=?', (value, key))
+        db.execute("UPDATE pay_rates SET value=? WHERE key=?", (value, key))
 
-    db.execute('UPDATE subjects SET is_active=0')
+    db.execute("UPDATE subjects SET is_active=0")
     for s in _DEFAULT_SUBJECTS:
-        existing = db.execute('SELECT id FROM subjects WHERE name=?', (s['name'],)).fetchone()
+        existing = db.execute(
+            "SELECT id FROM subjects WHERE name=?", (s["name"],)
+        ).fetchone()
         if existing:
-            db.execute('UPDATE subjects SET is_active=1, sort_order=? WHERE id=?',
-                       (s['sort_order'], existing['id']))
+            db.execute(
+                "UPDATE subjects SET is_active=1, sort_order=? WHERE id=?",
+                (s["sort_order"], existing["id"]),
+            )
         else:
-            db.execute('INSERT INTO subjects (name, sort_order, is_active) VALUES (?, ?, 1)',
-                       (s['name'], s['sort_order']))
-            new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+            db.execute(
+                "INSERT INTO subjects (name, sort_order, is_active) VALUES (?, ?, 1)",
+                (s["name"], s["sort_order"]),
+            )
+            new_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
             for grade in range(1, 7):
-                db.execute('INSERT OR IGNORE INTO grade_subjects (grade, subject_id) VALUES (?, ?)',
-                           (grade, new_id))
+                db.execute(
+                    "INSERT OR IGNORE INTO grade_subjects (grade, subject_id) VALUES (?, ?)",
+                    (grade, new_id),
+                )
 
-    db.execute('UPDATE chore_types SET is_active=0')
+    db.execute("UPDATE chore_types SET is_active=0")
     for ct in _DEFAULT_CHORE_TYPES:
-        existing = db.execute('SELECT id FROM chore_types WHERE name=?', (ct['name'],)).fetchone()
+        existing = db.execute(
+            "SELECT id FROM chore_types WHERE name=?", (ct["name"],)
+        ).fetchone()
         if existing:
-            db.execute('UPDATE chore_types SET is_active=1, unit_price=?, sort_order=? WHERE id=?',
-                       (ct['unit_price'], ct['sort_order'], existing['id']))
+            db.execute(
+                "UPDATE chore_types SET is_active=1, unit_price=?, sort_order=? WHERE id=?",
+                (ct["unit_price"], ct["sort_order"], existing["id"]),
+            )
         else:
-            db.execute('INSERT INTO chore_types (name, unit_price, sort_order, is_active) VALUES (?, ?, ?, 1)',
-                       (ct['name'], ct['unit_price'], ct['sort_order']))
+            db.execute(
+                "INSERT INTO chore_types (name, unit_price, sort_order, is_active) VALUES (?, ?, ?, 1)",
+                (ct["name"], ct["unit_price"], ct["sort_order"]),
+            )
 
     db.commit()
-    flash('デフォルト設定に戻しました。', 'success')
-    return redirect(url_for('admin.index') + '#presets')
+    flash("デフォルト設定に戻しました。", "success")
+    return redirect(url_for("admin.index") + "#presets")
